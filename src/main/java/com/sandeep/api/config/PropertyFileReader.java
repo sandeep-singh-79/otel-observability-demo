@@ -11,8 +11,8 @@ import java.util.Properties;
 public class PropertyFileReader {
     private Properties property;
 
-    public PropertyFileReader (File propertyFilePath) {
-        if(propertyFilePath.exists() && propertyFilePath.isFile()) {
+    public PropertyFileReader(File propertyFilePath) {
+        if (propertyFilePath.exists() && propertyFilePath.isFile()) {
             try {
                 property = new Properties();
 

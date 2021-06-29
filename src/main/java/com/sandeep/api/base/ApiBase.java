@@ -18,12 +18,12 @@ public class ApiBase {
     private RequestSpecification requestSpecification;
     private RequestSpecBuilder specBuilder;
 
-    public ApiBase (String baseURI, int port, String basePath) {
+    public ApiBase(String baseURI, int port, String basePath) {
         specBuilder = new RequestSpecBuilder().setBaseUri(baseURI).setPort(port).setBasePath(basePath);
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
     }
 
-    public ApiBase set_preemptive_basic_auth (final String user, final String password) {
+    public ApiBase set_preemptive_basic_auth(final String user, final String password) {
         PreemptiveBasicAuthScheme authScheme = new PreemptiveBasicAuthScheme();
         authScheme.setUserName(user);
         authScheme.setPassword(password);
@@ -32,32 +32,32 @@ public class ApiBase {
         return this;
     }
 
-    public ApiBase set_base_path (String base_path) {
+    public ApiBase set_base_path(String base_path) {
         if (StringUtils.isNotBlank(base_path)) specBuilder.setBasePath(base_path);
         else throw new RuntimeException("base path supplied is blank!");
 
         return this;
     }
 
-    public ApiBase set_contentType_and_body (final ContentType contentType, final String body) {
+    public ApiBase set_contentType_and_body(final ContentType contentType, final String body) {
         return set_content_type(contentType).set_body(body);
     }
 
-    public ApiBase set_content_type (final String content_type) {
+    public ApiBase set_content_type(final String content_type) {
         specBuilder.setContentType(content_type);
         return this;
     }
 
-    public ApiBase set_content_type (final ContentType content_type) {
+    public ApiBase set_content_type(final ContentType content_type) {
         return set_content_type(content_type.toString());
     }
 
-    public ApiBase set_body (final String body) {
+    public ApiBase set_body(final String body) {
         specBuilder.setBody(body);
         return this;
     }
 
-    public ApiBase set_basic_auth (final String user, final String password) {
+    public ApiBase set_basic_auth(final String user, final String password) {
         BasicAuthScheme authScheme = new BasicAuthScheme();
         authScheme.setUserName(user);
         authScheme.setPassword(password);
@@ -66,84 +66,84 @@ public class ApiBase {
         return this;
     }
 
-    public ApiBase set_session_config (final String session_id) {
+    public ApiBase set_session_config(final String session_id) {
         specBuilder.setSessionId(session_id);
 
         return this;
     }
 
-    public ApiBase set_request_headers (final Headers headers) {
+    public ApiBase set_request_headers(final Headers headers) {
         headers.forEach(header -> specBuilder.addHeader(header.getName(), header.getValue()));
         return this;
     }
 
-    public RequestSpecification build_request_spec () {
+    public RequestSpecification build_request_spec() {
         requestSpecification = specBuilder.build().given();
         return requestSpecification;
     }
 
-    public Response get_response (final Method method, final EndPoints end_point) throws NullPointerException {
+    public Response get_response(final Method method, final EndPoints end_point) throws NullPointerException {
         return this.get_response(method, end_point.toString());
     }
 
-    public ApiBase set_multi_part (final String param_name, final String param_value) {
+    public ApiBase set_multi_part(final String param_name, final String param_value) {
         specBuilder.addMultiPart(param_name, param_value);
         return this;
     }
 
-    public ApiBase set_multi_part (String param_name, final File file) {
+    public ApiBase set_multi_part(String param_name, final File file) {
         specBuilder.addMultiPart(param_name, file);
         return this;
     }
 
-    public ApiBase set_path_params (final String param_name, final String param_value) {
+    public ApiBase set_path_params(final String param_name, final String param_value) {
         specBuilder.addPathParam(param_name, param_value);
         return this;
     }
 
-    public ApiBase set_query_params (final Map <String, ?> params) {
+    public ApiBase set_query_params(final Map<String, ?> params) {
         requestSpecification.params(params);
         return this;
     }
 
-    public ApiBase set_cookie (Cookie cookie) {
+    public ApiBase set_cookie(Cookie cookie) {
         specBuilder.addCookie(cookie);
         return this;
     }
 
-    public ApiBase set_cookies (Cookies cookies) {
+    public ApiBase set_cookies(Cookies cookies) {
         specBuilder.addCookies(cookies);
         return this;
     }
 
-    public static ApiBase init_api_base (final String base_url,
-                                         final byte base_port,
-                                         final String end_point,
-                                         final Headers headers,
-                                         final ContentType contentType,
-                                         final Cookie cookie) {
+    public static ApiBase init_api_base(final String base_url,
+                                        final byte base_port,
+                                        final String end_point,
+                                        final Headers headers,
+                                        final ContentType contentType,
+                                        final Cookie cookie) {
         return init_api_base(base_url, base_port, end_point, headers, contentType)
                 .set_cookie(cookie);
     }
 
-    public static ApiBase init_api_base (final String base_url,
-                                         final byte base_port,
-                                         final String end_point,
-                                         final Headers headers,
-                                         final ContentType contentType) {
+    public static ApiBase init_api_base(final String base_url,
+                                        final byte base_port,
+                                        final String end_point,
+                                        final Headers headers,
+                                        final ContentType contentType) {
         return init_api_base(base_url, base_port, end_point, headers)
                 .set_content_type(contentType);
     }
 
-    public static ApiBase init_api_base (final String base_url,
-                                         final byte base_port,
-                                         final String end_point,
-                                         final Headers headers) {
+    public static ApiBase init_api_base(final String base_url,
+                                        final byte base_port,
+                                        final String end_point,
+                                        final Headers headers) {
         return new ApiBase(base_url, base_port, end_point)
                 .set_request_headers(headers);
     }
 
-    public Response get_response (final Method method, final String end_point) throws NullPointerException {
+    public Response get_response(final Method method, final String end_point) throws NullPointerException {
         Response response = null;
         if (requestSpecification == null && specBuilder != null) {
             requestSpecification = build_request_spec();
