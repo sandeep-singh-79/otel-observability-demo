@@ -2,14 +2,10 @@ package com.sandeep.api.tests;
 
 import io.restassured.response.Response;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import org.awaitility.Awaitility;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -24,19 +20,8 @@ import static org.hamcrest.Matchers.is;
 
 @Slf4j
 public class APIAwaitilityTest extends BaseAPITest {
-    private static String jsonBody = "";
-
     @BeforeMethod
     public void initTestSetup() {
-        try {
-            jsonBody = FileUtils.readFileToString(
-                    new File("src/test/resources/test_data/mockData/usersResponse.json"),
-                    StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            log.error(e.getCause().toString());
-            e.printStackTrace();
-        }
-
         /*apiBase = new ApiBase(config.getProperty("baseUrl"), Byte.parseByte(config.getProperty("basePort", "80")),
                 config.getProperty("basePath"));*/
     }
@@ -69,7 +54,6 @@ public class APIAwaitilityTest extends BaseAPITest {
 
                     // Assert
                     assertThat(response.statusCode(), is(200));
-                    //assertTrue(response.getBody().jsonPath().getList("data.first_name").contains("George"));
                 });
     }
 }

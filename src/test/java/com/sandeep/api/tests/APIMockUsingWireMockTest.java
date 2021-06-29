@@ -2,13 +2,7 @@ package com.sandeep.api.tests;
 
 import io.restassured.response.Response;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.sandeep.api.base.EndPoints.USERS;
@@ -18,20 +12,6 @@ import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public class APIMockUsingWireMockTest extends BaseAPITest {
-    private static String jsonBody = "";
-
-    @BeforeMethod
-    public void initJsonBody() {
-        try {
-            jsonBody = FileUtils.readFileToString(
-                    new File("src/test/resources/test_data/mockData/usersResponse.json"),
-                    StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            log.error(e.getCause().toString());
-            e.printStackTrace();
-        }
-    }
-
     private Response response;
 
     @Test
