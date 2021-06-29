@@ -10,6 +10,7 @@
         <classes>
             <class name="com.sandeep.api.tests.APIMockUsingWireMockTest"/>
             <class name="com.sandeep.api.tests.APIAwaitilityTest" />
+            <class name="com.sandeep.api.tests.JsonSchemaValidationTest" />
         </classes>
     </test>
 </suite>
