@@ -1,0 +1,15 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="Integration_Test_Suite" verbose="1">
+    <listeners>
+        <!--<listener class-name="RetryListener" />-->
+        <listener class-name="com.aventstack.extentreports.testng.listener.ExtentITestListenerClassAdapter"/>
+    </listeners>
+
+    <test name="API Tests" parallel="classes" thread-count="5">
+        <classes>
+            <class name="com.sandeep.api.tests.APIMockUsingWireMockTest"/>
+            <class name="com.sandeep.api.tests.APIAwaitilityTest" />
+        </classes>
+    </test>
+</suite>
