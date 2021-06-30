@@ -10,9 +10,8 @@
 
     <properties>
         <logback.version>1.2.3</logback.version>
-        <slf4j.version>1.7.30</slf4j.version>
-        <restassured.version>4.3.3</restassured.version>
-        <cucumber.version>6.10.3</cucumber.version>
+        <slf4j.version>1.7.31</slf4j.version>
+        <restassured.version>4.4.0</restassured.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <env.dev>dev</env.dev>
         <env.qa>qa</env.qa>
@@ -29,7 +28,7 @@
         <dependency>
             <groupId>com.github.tomakehurst</groupId>
             <artifactId>wiremock-jre8</artifactId>
-            <version>2.28.0</version>
+            <version>2.28.1</version>
         </dependency>
         <dependency>
             <groupId>io.rest-assured</groupId>
@@ -65,32 +64,6 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.20</version>
-        </dependency>
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>gherkin</artifactId>
-            <version>18.1.1</version>
-        </dependency>
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>cucumber-java</artifactId>
-            <version>${cucumber.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.cucumber</groupId>
-                    <artifactId>messages</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>cucumber-testng</artifactId>
-            <version>${cucumber.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>cucumber-picocontainer</artifactId>
-            <version>${cucumber.version}</version>
         </dependency>
         <dependency>
             <groupId>com.aventstack</groupId>
