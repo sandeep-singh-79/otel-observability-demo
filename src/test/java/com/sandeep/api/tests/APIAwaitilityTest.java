@@ -2,21 +2,20 @@ package com.sandeep.api.tests;
 
 import io.restassured.response.Response;
 import lombok.extern.slf4j.Slf4j;
-import org.awaitility.Awaitility;
+import org.apache.commons.io.FileUtils;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static com.sandeep.api.base.EndPoints.USERS;
+import static com.sandeep.api.base.EndPoints.UNKNOWN;
 import static io.restassured.http.ContentType.JSON;
 import static io.restassured.http.Method.GET;
-import static java.lang.String.format;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.awaitility.Awaitility.await;
 
 @Slf4j
 public class APIAwaitilityTest extends BaseAPITest {
@@ -29,31 +28,32 @@ public class APIAwaitilityTest extends BaseAPITest {
     private Response response;
 
     @Test
-    public void TestDelayedResponse() {
+    public void TestDelayedResponse() throws IOException {
+        this.jsonBody = FileUtils.readFileToString(
+                new File("src/test/resources/test_data/mockData/listResourceResponse.json"),
+                StandardCharsets.UTF_8);
         // Arrange
-        wireMockServer.stubFor(get(urlMatching(format("%s?delay", USERS)))
+        wireMockServer.stubFor(get(urlMatching(UNKNOWN + "\\?delay=[0-9]+"))
                 .willReturn(aResponse()
                         .withStatus(200)
-                        .withFixedDelay(5000)
+                        .withFixedDelay(3000)
                         .withHeader("Content-Type", JSON.toString())
                         .withBody(jsonBody)));
 
         // Action
-        Awaitility.await()
-                .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    try {
-                        Map<String, String> queryParams = new HashMap<>();
-                        queryParams.put("delay", "4");
-                        response = apiBase
-                                .get_response(GET, USERS)
-                                .andReturn();
-                    } catch (NullPointerException e) {
-                        log.error("Unable to initialize Response object as null was returned!");
-                    }
+        await()
+            .between(Duration.ofSeconds(2), Duration.ofSeconds(10))
+            .untilAsserted(() -> {
+                try {
+                    response = apiBase
+                            .get_response(GET, UNKNOWN + "?delay=3")
+                            .andReturn();
+                } catch (NullPointerException e) {
+                    log.error("Unable to initialize Response object as null was returned!");
+                }
 
-                    // Assert
-                    assertThat(response.statusCode(), is(200));
-                });
+                // Assert
+                response.then().statusCode(200);
+            });
     }
 }
