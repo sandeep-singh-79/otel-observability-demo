@@ -9,7 +9,7 @@ on:
   push:
     branches: [ $default-branch ]
   pull_request:
-    branches: [ $default-branch ]
+    branches: [ master ]
   schedule:
     - cron: '0 3 * * 5'
 
