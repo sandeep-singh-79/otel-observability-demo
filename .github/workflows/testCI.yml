@@ -10,6 +10,8 @@ jobs:
   build:
     name: Build Project
     runs-on: ubuntu-latest
+    env:
+      MAVEN_OPTS: "-Dmaven.repo.local=${{ github.workspace }}/repository"
 
     steps:
       - name: Checkout repository
@@ -29,12 +31,14 @@ jobs:
           java-version: '11'
           distribution: 'adopt'
 
-      - name: Cache Maven packages
+      - name: Cache Maven repository
         uses: actions/cache@v2
         with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          path: "${{ github.workspace }}/repository"
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+            ${{ runner.os }}-
 
       - name: Build with Maven
         run: mvn -B clean test
