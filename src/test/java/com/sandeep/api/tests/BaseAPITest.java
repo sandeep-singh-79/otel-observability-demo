@@ -11,7 +11,6 @@ import io.restassured.http.Headers;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -20,9 +19,7 @@ import org.testng.annotations.Listeners;
 import org.testng.asserts.SoftAssert;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Parameter;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -49,15 +46,6 @@ public abstract class BaseAPITest {
 
     @BeforeClass
     public void setup() {
-        try {
-            jsonBody = FileUtils.readFileToString(
-                    new File("src/test/resources/test_data/mockData/usersResponse.json"),
-                    StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            log.error(e.getCause().toString());
-            e.printStackTrace();
-        }
-
         wireMockServer.start();
 
         /*apiBase = new ApiBase(config.getProperty("baseUrl"), Byte.valueOf(config.getProperty("basePort", "80")),
