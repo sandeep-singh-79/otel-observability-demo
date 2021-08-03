@@ -1,5 +1,6 @@
-package com.sandeep.api.tests;
+package com.sandeep.api.tests.serviceVirtualization.delayed;
 
+import com.sandeep.api.tests.BaseAPITest;
 import io.restassured.response.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;

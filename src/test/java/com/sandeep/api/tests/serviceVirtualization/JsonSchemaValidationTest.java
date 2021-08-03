@@ -1,9 +1,10 @@
-package com.sandeep.api.tests;
+package com.sandeep.api.tests.serviceVirtualization;
 
 import com.github.fge.jsonschema.SchemaVersion;
 import com.github.fge.jsonschema.cfg.ValidationConfiguration;
 import com.github.fge.jsonschema.main.JsonSchemaFactory;
 import com.sandeep.api.base.ApiBase;
+import com.sandeep.api.tests.BaseAPITest;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
