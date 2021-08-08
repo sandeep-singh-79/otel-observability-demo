@@ -91,6 +91,12 @@
             <version>4.4.0</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>au.com.dius.pact</groupId>
+            <artifactId>consumer</artifactId>
+            <version>4.2.9</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <profiles>
@@ -105,6 +111,7 @@
                         <configuration>
                             <systemPropertyVariables>
                                 <env>${env.dev}</env>
+                                <pact.rootDir>src/test/resources/pacts</pact.rootDir>
                             </systemPropertyVariables>
                             <argLine>-Xmx1024m</argLine>
                             <argLine>-XX:MaxPermSize=512m</argLine>
@@ -127,6 +134,7 @@
                         <configuration>
                             <systemPropertyVariables>
                                 <env>${env.qa}</env>
+                                <pact.rootDir>./src/test/resources/pacts</pact.rootDir>
                             </systemPropertyVariables>
                             <argLine>-Xmx1024m</argLine>
                             <argLine>-XX:MaxPermSize=512m</argLine>
