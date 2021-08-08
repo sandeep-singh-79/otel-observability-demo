@@ -6,7 +6,13 @@
         <listener class-name="com.aventstack.extentreports.testng.listener.ExtentITestListenerClassAdapter"/>
     </listeners>
 
-    <test name="API Tests" parallel="classes" thread-count="5">
+    <!--<test name="Pact Contract Tests">
+        <classes>
+            <class name="com.sandeep.api.tests.contract.pact.PactConsumerTest" />
+        </classes>
+    </test>-->
+
+    <test name="API Tests With Virtualization" parallel="classes" thread-count="5">
         <classes>
             <class name="com.sandeep.api.tests.serviceVirtualization.APIMockUsingWireMockTest"/>
             <class name="com.sandeep.api.tests.serviceVirtualization.delayed.APIAwaitilityTest"/>
