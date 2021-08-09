@@ -57,6 +57,6 @@ public class PactConsumerTest {
                 .jsonPath()
                 .getList("data.first_name")
                 .contains("George"));
-
+        //assertEquals(new Ok(), pactConsumerResult)
     }
 }
