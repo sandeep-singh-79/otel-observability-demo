@@ -23,7 +23,8 @@ public class PactConsumerTest {
     @Test
     public void testConsumerContractForGetAllUsers() {
         // Arrange
-        RequestResponsePact responsePact = PactUtil.getGetRequestResponsePact("reqResUserConsumer",
+        RequestResponsePact responsePact = PactUtil.getGetRequestResponsePact("A set of users exist",
+                "reqResUserConsumer",
                 "reqResUserProvider",
                 "ReqRes user fetch test",
                 format("/api%s", USERS));
@@ -56,7 +57,6 @@ public class PactConsumerTest {
                 .jsonPath()
                 .getList("data.first_name")
                 .contains("George"));
-        //assertEquals(new Ok(), pactConsumerResult);
-
+        //assertEquals(new Ok(), pactConsumerResult)
     }
 }
