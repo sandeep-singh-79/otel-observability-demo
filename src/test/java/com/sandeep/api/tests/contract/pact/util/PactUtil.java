@@ -1,6 +1,7 @@
 package com.sandeep.api.tests.contract.pact.util;
 
 import au.com.dius.pact.consumer.ConsumerPactBuilder;
+import au.com.dius.pact.consumer.dsl.PactDslJsonBody;
 import au.com.dius.pact.core.model.RequestResponsePact;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -19,6 +20,8 @@ public class PactUtil {
 
     /**
      * The method generates a consumer pact file for a get request
+     *
+     * @param providerState
      * @param consumer
      * @param provider
      * @param contractDescription
@@ -26,26 +29,50 @@ public class PactUtil {
      * @return
      */
     @NotNull
-    public static RequestResponsePact getGetRequestResponsePact(String consumer, String provider, String contractDescription, String path) {
+    public static RequestResponsePact getGetRequestResponsePact(String providerState, String consumer, String provider, String contractDescription, String path) {
         return ConsumerPactBuilder
                 .consumer(consumer)
                 .hasPactWith(provider)
+                .given(providerState)
                 .uponReceiving(contractDescription)
                 .path(path)
                 .method("GET")
                 .willRespondWith()
                 .status(200)
                 .headers(getJsonContentTypeHeader())
-                .body(initJsonBodyFromFile(new File("src/test/resources/test_data/mockData/usersResponse.json")))
+                .body(createUserJsonBody())
                 .toPact();
+    }
+
+    /**
+     * @return  pact dsl json body
+     */
+    public static PactDslJsonBody createUserJsonBody() {
+
+        return new PactDslJsonBody()
+                .integerType("page")
+                .integerType("per_page")
+                .integerType("total")
+                .integerType("total_pages")
+                .array("data")
+                    .object()
+                        .id()
+                        .stringType("first_name", "George")
+                        .stringType("last_name", "Bluth")
+                        .stringType("email", "george.bluth@reqres.in")
+                        .stringType("avatar", "https://reqres.in/img/faces/1-image.jpg")
+                    .closeObject()
+                .closeArray()
+                .asBody();
     }
 
 
     /**
      * The method returns the json body in String format on the basis of the supplied file.
      * It returns an empty string in case of an exception
+     *
      * @param jsonBodyFile
-     * @return              json string representation from the supplied file
+     * @return json string representation from the supplied file
      */
     @NotNull
     public static String initJsonBodyFromFile(File jsonBodyFile) {
@@ -63,8 +90,7 @@ public class PactUtil {
     }
 
     /**
-     *
-     * @return  A hashmap of header values
+     * @return A hashmap of header values
      */
     @NotNull
     public static Map<String, String> getJsonContentTypeHeader() {
