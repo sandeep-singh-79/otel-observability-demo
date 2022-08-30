@@ -24,7 +24,7 @@ jobs:
           distribution: 'adopt'
 
       - name: Cache Maven repository
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: "${{ github.workspace }}/repository"
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
