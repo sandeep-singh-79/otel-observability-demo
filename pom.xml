@@ -11,7 +11,7 @@
     <properties>
         <logback.version>1.4.1</logback.version>
         <slf4j.version>2.0.3</slf4j.version>
-        <restassured.version>5.1.1</restassured.version>
+        <restassured.version>5.2.0</restassured.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <env.dev>dev</env.dev>
         <env.qa>qa</env.qa>
