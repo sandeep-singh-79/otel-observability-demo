@@ -9,7 +9,7 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <logback.version>1.4.4</logback.version>
+        <logback.version>1.4.5</logback.version>
         <slf4j.version>2.0.5</slf4j.version>
         <restassured.version>5.2.0</restassured.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
