@@ -16,7 +16,7 @@
         <env.dev>dev</env.dev>
         <env.qa>qa</env.qa>
         <surefire.version>3.2.5</surefire.version>
-        <java.version>1.8</java.version>
+        <java.version>17</java.version>
     </properties>
 
     <dependencies>
