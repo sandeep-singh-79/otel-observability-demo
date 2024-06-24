@@ -83,7 +83,7 @@
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20230227</version>
+            <version>20231013</version>
         </dependency>
         <dependency>
             <groupId>io.rest-assured</groupId>
@@ -94,9 +94,9 @@
         <dependency>
             <groupId>au.com.dius.pact</groupId>
             <artifactId>consumer</artifactId>
-            <version>4.6.0</version>
-            <scope>test</scope>
+            <version>4.6.10</version>
         </dependency>
+
     </dependencies>
 
     <profiles>
