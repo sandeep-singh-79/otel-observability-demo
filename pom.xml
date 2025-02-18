@@ -15,7 +15,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <env.dev>dev</env.dev>
         <env.qa>qa</env.qa>
-        <surefire.version>3.4.0</surefire.version>
+        <surefire.version>3.5.2</surefire.version>
         <java.version>17</java.version>
     </properties>
 
