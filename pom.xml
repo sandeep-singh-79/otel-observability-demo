@@ -94,7 +94,7 @@
         <dependency>
             <groupId>au.com.dius.pact</groupId>
             <artifactId>consumer</artifactId>
-            <version>4.6.15</version>
+            <version>4.6.17</version>
         </dependency>
 
     </dependencies>
