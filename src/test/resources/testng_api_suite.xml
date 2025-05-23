@@ -4,6 +4,7 @@
     <listeners>
         <!--<listener class-name="RetryListener" />-->
         <listener class-name="com.aventstack.extentreports.testng.listener.ExtentITestListenerClassAdapter"/>
+        <listener class-name="com.sandeep.api.listeners.OpenTelemetryTestListener" />
     </listeners>
 
     <!--<test name="Pact Contract Tests">
