@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.sandeep</groupId>
-    <artifactId>api-automation-framework</artifactId>
+    <artifactId>OpenTelemetry-Automation-Demo</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -17,6 +17,8 @@
         <env.qa>qa</env.qa>
         <surefire.version>3.5.3</surefire.version>
         <java.version>17</java.version>
+        <opentelemetry-sdk.version>1.50.0</opentelemetry-sdk.version>
+        <opentelemetry-exporter-otlp.version>1.50.0</opentelemetry-exporter-otlp.version>
     </properties>
 
     <dependencies>
@@ -96,7 +98,26 @@
             <artifactId>consumer</artifactId>
             <version>4.6.17</version>
         </dependency>
-
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+            <version>${opentelemetry-sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk</artifactId>
+            <version>${opentelemetry-sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+            <version>${opentelemetry-exporter-otlp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-semconv</artifactId>
+            <version> 1.24.0-alpha</version> <!-- Use the version matching your OpenTelemetry SDK -->
+        </dependency>
     </dependencies>
 
     <profiles>
@@ -114,7 +135,6 @@
                                 <pact.rootDir>src/test/resources/pacts</pact.rootDir>
                             </systemPropertyVariables>
                             <argLine>-Xmx1024m</argLine>
-                            <argLine>-XX:MaxPermSize=512m</argLine>
                             <suiteXmlFiles>
                                 <suiteXmlFile>./src/test/resources/testng_api_suite.xml</suiteXmlFile>
                             </suiteXmlFiles>
@@ -137,7 +157,6 @@
                                 <pact.rootDir>./src/test/resources/pacts</pact.rootDir>
                             </systemPropertyVariables>
                             <argLine>-Xmx1024m</argLine>
-                            <argLine>-XX:MaxPermSize=512m</argLine>
                             <suiteXmlFiles>
                                 <suiteXmlFile>./src/test/resources/testng_api_suite.xml</suiteXmlFile>
                             </suiteXmlFiles>
