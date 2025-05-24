@@ -1,10 +1,9 @@
 version: '3.8'
 services:
-  jaeger:
-    image: jaegertracing/all-in-one:latest
+  zipkin:
+    image: openzipkin/zipkin:latest
     ports:
-      - "16686:16686"
-      - "14250:14250"  # gRPC ingest from OTel Collector
+      - "9411:9411"
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
@@ -12,6 +11,8 @@ services:
       - ./otel-collector-config.yml:/etc/otel-collector-config.yml
     command: ["--config=/etc/otel-collector-config.yml"]
     ports:
-      - "4318:4318"
+      - "4317:4317"
     depends_on:
-      - jaeger
+      - zipkin
+    environment:
+      - LOG_LEVEL=debug

@@ -30,7 +30,7 @@ public class OpenTelemetryConfig {
                                                .build();
 
             OtlpGrpcSpanExporter spanExporter = OtlpGrpcSpanExporter.builder()
-                                                    .setEndpoint("http://localhost:4318")
+                                                    .setEndpoint("http://localhost:4317")
                                                     .build();
 
             SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
