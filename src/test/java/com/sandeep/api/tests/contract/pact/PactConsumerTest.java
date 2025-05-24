@@ -6,6 +6,8 @@ import au.com.dius.pact.core.model.RequestResponsePact;
 import com.sandeep.api.base.ApiBase;
 import com.sandeep.api.tests.contract.pact.util.PactUtil;
 import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
@@ -38,9 +40,14 @@ public class PactConsumerTest {
                     "ReqRes user fetch test",
                     format("/api%s", USERS));
 
-            contractSpan.setAttribute("contract.consumer", "reqResUserConsumer");
-            contractSpan.setAttribute("contract.provider", "reqResUserProvider");
-            contractSpan.setAttribute("contract.path", format("/api/%s", USERS));
+            var contractAttributes = Attributes.builder()
+                                         .put("contract.consumer", "reqResUserConsumer")
+                                         .put("contract.provider", "reqResUserProvider")
+                                         .put("contract.path", format("/api/%s", USERS))
+                                         .build();
+            contractSpan.setAllAttributes(contractAttributes);
+            // add pact related details as event to contractSpan
+            contractSpan.addEvent("Pact Contract Created", contractAttributes);
         } finally {
             contractSpan.end();
         }
@@ -52,15 +59,27 @@ public class PactConsumerTest {
                     8090,
                     V4);
 
+            executionSpan.addEvent("MockProviderConfig initialized", Attributes.of(
+                AttributeKey.stringKey("mock.host"), "localhost",
+                AttributeKey.stringKey("mock.port"), "8090"
+            ));
+
+            executionSpan.addEvent("Running Pact Consumer Test");
+
             pactConsumerResult = runConsumerTest(responsePact,
                     pactConsumerConfig,
                     (mockServer, pactTestExecutionContext) -> {
                         // Action
                         try {
+                            executionSpan.addEvent("Sending GET request to /api/users");
                             response = new ApiBase(mockServer.getUrl(), mockServer.getPort(), "/api")
                                     .get_response(GET, USERS)
                                     .andReturn();
+                            executionSpan.addEvent("Received response", Attributes.of(
+                                AttributeKey.longKey("http.status_code"), (long) response.getStatusCode()
+                            ));
                         } catch (NullPointerException e) {
+                            executionSpan.addEvent("Unable to initialize Response object as null was returned!");
                             log.error("Unable to initialize Response object as null was returned!");
                         }
                         return null;
@@ -73,16 +92,21 @@ public class PactConsumerTest {
         Span assertionSpan = tracer.spanBuilder("Step: Assert API response").startSpan();
         try (Scope scope = assertionSpan.makeCurrent()) {
             if (pactConsumerResult instanceof PactVerificationResult.Error) {
+                assertionSpan.addEvent("Pact verification failed", Attributes.of(
+                    AttributeKey.stringKey("error"), ((PactVerificationResult.Error) pactConsumerResult).getError().toString()
+                ));
                 throw new RuntimeException(((PactVerificationResult.Error) pactConsumerResult).getError());
             }
 
             // Assert
+            assertionSpan.addEvent("Asserting response status code == 200");
             response.then().statusCode(200);
             var hasGeorge = response.getBody()
                              .jsonPath()
                              .getList("data.first_name")
                              .contains("George");
             assertionSpan.setAttribute("response.contains.george", hasGeorge);
+            assertionSpan.addEvent("Checked for 'George' in response: " + hasGeorge);
             assertTrue(hasGeorge);
             //assertEquals(new Ok(), pactConsumerResult)
         } finally {
