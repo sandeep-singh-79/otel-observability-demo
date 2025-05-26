@@ -28,7 +28,7 @@ public class PactConsumerTest {
 
     @Test
     public void testConsumerContractForGetAllUsers() {
-        Tracer tracer = GlobalOpenTelemetry.getTracer("api-tests");
+        Tracer tracer = GlobalOpenTelemetry.getTracer("cdc-tests");
 
         // Arrange
         Span contractSpan = tracer.spanBuilder("Step: Define Pact Contract").startSpan();
