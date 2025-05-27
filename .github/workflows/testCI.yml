@@ -13,6 +13,38 @@ jobs:
     env:
       MAVEN_OPTS: "-Dmaven.repo.local=${{ github.workspace }}/repository"
 
+    services:
+      zipkin:
+        image: openzipkin/zipkin:2.23
+        ports:
+          - 9411:9411
+      otel-collector:
+        image: otel/opentelemetry-collector-contrib:latest
+        ports:
+          - 4317:4317  # OTLP gRPC
+          - 55681:55681 # OTLP HTTP
+        volumes:
+          - ./otel-collector-config.yml:/etc/otelcol/config.yaml
+      prometheus:
+        image: prom/prometheus:latest
+        ports:
+          - 9090:9090
+        options: >-
+          --health-cmd="wget --spider --quiet http://localhost:9090/-/healthy || exit 1" \
+          --health-interval=10s --health-timeout=5s --health-retries=5
+        volumes:
+          - ${{ github.workspace }}/prometheus.yml:/etc/prometheus/prometheus.yml
+      grafana:
+        image: grafana/grafana:latest
+        ports:
+          - 3000:3000
+        options: >-
+          --health-cmd="curl --fail http://localhost:3000/api/health || exit 1" \
+          --health-interval=10s --health-timeout=5s --health-retries=5
+        volumes:
+          - ${{ github.workspace }}/grafana-dashboard-api-test-observability.json:/etc/grafana/provisioning/dashboards/api-test-observability.json
+          - ${{ github.workspace }}/grafana-dashboard-provisioning.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,3 +66,38 @@ jobs:
 
       - name: Build with Maven
         run: mvn -B clean test
+
+      - name: Wait for Prometheus to be healthy
+        run: |
+          for i in {1..10}; do
+            if curl -sf http://localhost:9090/-/healthy; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+
+      - name: Check Prometheus metrics endpoint
+        run: |
+          curl -sf http://localhost:9090/metrics | grep process_cpu_seconds_total
+
+      - name: Wait for Grafana to be healthy
+        run: |
+          for i in {1..10}; do
+            if curl -sf http://localhost:3000/api/health; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+
+      - name: Check Grafana dashboard provisioning
+        run: |
+          curl -sf -u admin:admin http://localhost:3000/api/search?query=api-test-observability
+
+      - name: Debug: Check prometheus.yml presence in service container
+        run: |
+          docker ps -a
+          PROM_CONTAINER=$(docker ps -qf ancestor=prom/prometheus:latest)
+          if [ -n "$PROM_CONTAINER" ]; then
+            docker exec $PROM_CONTAINER ls -l /etc/prometheus/
+          else
+            echo "Prometheus container not found."
+          fi
+        continue-on-error: true
