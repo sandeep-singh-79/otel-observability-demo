@@ -107,6 +107,20 @@ jobs:
           fi
         continue-on-error: true
 
+      - name: Verify test metrics in Prometheus
+        run: |
+          sleep 10 # Give Prometheus time to scrape metrics
+          curl -s "http://localhost:9090/api/v1/query?query=test_result_total" | jq .
+          # Fail if no results
+          curl -s "http://localhost:9090/api/v1/query?query=test_result_total" | grep '"status":"success"' || exit 1
+          echo "Prometheus metrics found!"
+
+      - name: Verify Grafana dashboard is present
+        run: |
+          sleep 10 # Give Grafana time to provision dashboards
+          curl -s -u admin:admin "http://localhost:3000/api/search?query=API%20Test%20Observability" | grep 'API Test Observability' || exit 1
+          echo "Grafana dashboard found!"
+
       - name: Confirm Zipkin is running
         run: |
           curl --fail http://localhost:9411/health || exit 1

@@ -1,0 +1,101 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "api-test-observability",
+    "title": "API Test Observability",
+    "tags": ["api-test", "prometheus", "otel"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "type": "stat",
+        "title": "Total Test Runs",
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(test_result_total)",
+            "legendFormat": "Total"
+          }
+        ]
+      },
+      {
+        "type": "piechart",
+        "title": "Test Pass/Fail Rate",
+        "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum by (status) (test_result_total)",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "type": "timeseries",
+        "title": "Test Results Over Time",
+        "gridPos": {"x": 0, "y": 4, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "sum by (status, suite, test_run_id) (increase(test_result_total[5m]))",
+            "legendFormat": "{{status}} ({{suite}}/{{test_run_id}})"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "title": "Test Duration by Test",
+        "gridPos": {"x": 0, "y": 10, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "avg by (suite, test_class, test_name, test_run_id) (test_duration_seconds_sum / test_duration_seconds_count)",
+            "legendFormat": "{{suite}}.{{test_class}}.{{test_name}} ({{test_run_id}})"
+          }
+        ],
+        "columns": [
+          {"text": "suite", "value": "suite"},
+          {"text": "test_class", "value": "test_class"},
+          {"text": "test_name", "value": "test_name"},
+          {"text": "test_run_id", "value": "test_run_id"},
+          {"text": "avg_duration", "value": "Value"}
+        ]
+      },
+      {
+        "type": "timeseries",
+        "title": "Test Duration (95th Percentile)",
+        "gridPos": {"x": 0, "y": 18, "w": 12, "h": 6},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(test_duration_seconds_bucket[5m])) by (le, suite, test_class, test_name, test_run_id))",
+            "legendFormat": "{{suite}}.{{test_class}}.{{test_name}} ({{test_run_id}})"
+          }
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "suite",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(test_result_total, suite)",
+          "refresh": 1
+        },
+        {
+          "name": "test_run_id",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(test_result_total, test_run_id)",
+          "refresh": 1
+        },
+        {
+          "name": "status",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(test_result_total, status)",
+          "refresh": 1
+        }
+      ]
+    }
+  }
+}
