@@ -12,7 +12,29 @@ services:
     command: ["--config=/etc/otel-collector-config.yml"]
     ports:
       - "4317:4317"
+      - "8889:8889" # Prometheus metrics endpoint (default for otelcol-contrib)
     depends_on:
       - zipkin
     environment:
       - LOG_LEVEL=debug
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana-dashboard-api-test-observability.json:/etc/grafana/provisioning/dashboards/grafana-dashboard-api-test-observability.json
+      - ./grafana-dashboard-provisioning.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
