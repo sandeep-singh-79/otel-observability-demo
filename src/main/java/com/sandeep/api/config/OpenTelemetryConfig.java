@@ -1,4 +1,4 @@
-package com.sandeep.api.util;
+package com.sandeep.api.config;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
