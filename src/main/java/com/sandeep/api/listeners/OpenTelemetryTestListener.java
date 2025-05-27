@@ -1,7 +1,7 @@
 package com.sandeep.api.listeners;
 
 
-import com.sandeep.api.util.OpenTelemetryConfig;
+import com.sandeep.api.config.OpenTelemetryConfig;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
@@ -21,7 +21,7 @@ public class OpenTelemetryTestListener implements ISuiteListener, IInvokedMethod
     private final Map<String, Span> suiteSpans = new ConcurrentHashMap<>();
 
     @Override
-    public void onStart(ISuite suite) {
+    public void onStart (ISuite suite) {
         openTelemetrySdk = (OpenTelemetrySdk) OpenTelemetryConfig.getOpenTelemetry();
         tracer = openTelemetrySdk.getTracer("api-tests");
 
@@ -36,7 +36,7 @@ public class OpenTelemetryTestListener implements ISuiteListener, IInvokedMethod
     }
 
     @Override
-    public void onFinish(ISuite suite) {
+    public void onFinish (ISuite suite) {
         Span suiteSpan = suiteSpans.remove(suite.getName());
         if (suiteSpan != null) {
             suiteSpan.setAttribute("suite.status", "finished");
@@ -50,7 +50,7 @@ public class OpenTelemetryTestListener implements ISuiteListener, IInvokedMethod
     }
 
     @Override
-    public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
+    public void beforeInvocation (IInvokedMethod method, ITestResult testResult) {
         if (method.isTestMethod()) {
             String testName = method.getTestMethod().getMethodName();
             String className = method.getTestMethod().getRealClass().getSimpleName();
@@ -70,7 +70,7 @@ public class OpenTelemetryTestListener implements ISuiteListener, IInvokedMethod
     }
 
     @Override
-    public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
+    public void afterInvocation (IInvokedMethod method, ITestResult testResult) {
         if (method.isTestMethod()) {
             Span span = (Span) testResult.getAttribute("currentSpan");
             Scope scope = (Scope) testResult.getAttribute("currentScope");
