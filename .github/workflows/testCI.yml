@@ -65,13 +65,6 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven
 
-      - name: Run tests with instrumentation
-        run: mvn clean test
-        env:
-          OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317"
-          SERVICE_NAME: "api-test-automation"
-          TEST_RUN_ID: ${{ github.run_id }}
-
       - name: Wait for Prometheus to be healthy
         run: |
           for i in {1..10}; do
@@ -79,10 +72,6 @@ jobs:
             sleep 5
           done
           exit 1
-
-      - name: Check Prometheus metrics endpoint
-        run: |
-          curl -sf http://localhost:9090/metrics | grep process_cpu_seconds_total
 
       - name: Wait for Grafana to be healthy
         run: |
@@ -92,9 +81,10 @@ jobs:
           done
           exit 1
 
-      - name: Check Grafana dashboard provisioning
+      - name: Confirm Zipkin is running
         run: |
-          curl -sf -u admin:admin http://localhost:3000/api/search?query=api-test-observability
+          curl --fail http://localhost:9411/health || exit 1
+          echo "Zipkin is up!"
 
       - name: Check prometheus.yml presence in service container
         run: |
@@ -106,6 +96,21 @@ jobs:
             echo "Prometheus container not found."
           fi
         continue-on-error: true
+
+      - name: Run tests with instrumentation
+        run: mvn clean test
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ env.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+          TEST_RUN_ID: ${{ env.TEST_RUN_ID }}
+
+      - name: Check Prometheus metrics endpoint
+        run: |
+          curl -sf http://localhost:9090/metrics | grep process_cpu_seconds_total
+
+      - name: Check Grafana dashboard provisioning
+        run: |
+          curl -sf -u admin:admin http://localhost:3000/api/search?query=api-test-observability
 
       - name: Verify test metrics in Prometheus
         run: |
@@ -121,11 +126,6 @@ jobs:
           curl -s -u admin:admin "http://localhost:3000/api/search?query=API%20Test%20Observability" | grep 'API Test Observability' || exit 1
           echo "Grafana dashboard found!"
 
-      - name: Confirm Zipkin is running
-        run: |
-          curl --fail http://localhost:9411/health || exit 1
-          echo "Zipkin is up!"
-
       - name: Verify traces in Zipkin
         run: |
-          curl -s http://localhost:9411/api/v2/traces?serviceName=api-test-automation | jq .
+          curl -s "http://localhost:9411/api/v2/traces?serviceName=${{ env.SERVICE_NAME }}" | jq .
