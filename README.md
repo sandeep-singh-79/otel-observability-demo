@@ -185,10 +185,60 @@ This project now uses the [Prometheus Pushgateway](https://prometheus.io/docs/pr
 
 ---
 
-## 📝 Notes
-- The old Prometheus HTTPServer endpoint (`:8081`) is no longer required for metrics scraping.
-- The Pushgateway is the single source for test metrics in this setup.
-- Make sure the Pushgateway service is running before executing tests.
+## ⚙️ Configuration: Ports & Environment Variables
+
+All observability service ports are now configurable via environment variables (with sensible defaults):
+
+| Service        | Docker Compose Variable      | Default |
+| -------------- | --------------------------- | ------- |
+| Zipkin         | `ZIPKIN_PORT`               | 9411    |
+| OTEL Collector | `OTEL_PORT`                 | 4317    |
+| OTEL Prometheus| `OTEL_PROM_PORT`            | 8889    |
+| Prometheus     | `PROMETHEUS_PORT`           | 9090    |
+| Grafana        | `GRAFANA_PORT`              | 3000    |
+| Pushgateway    | `PUSHGATEWAY_PORT`          | 9091    |
+
+Override any port by setting the variable before running `docker-compose up`:
+
+```powershell
+$env:PROMETHEUS_PORT = "9095"; docker-compose up
+```
+
+---
+
+## 📋 OpenTelemetry & Metrics Attribute Naming
+
+All span attributes and Prometheus metric labels follow OpenTelemetry semantic conventions (snake_case):
+
+| OpenTelemetry Attribute | Prometheus Label | Description                |
+|------------------------|------------------|----------------------------|
+| `test.suite`           | `test.suite`     | Test suite name            |
+| `test.class`           | `test.class`     | Test class name            |
+| `test.name`            | `test.name`      | Test method name           |
+| `test.status`          | `test.status`    | Test result (pass/fail)    |
+| `test.run_id`          | `test.run_id`    | Unique test run/session ID |
+| `aut`                  | `aut`            | App under test             |
+
+These attributes are used for both tracing (OpenTelemetry/Zipkin) and metrics (Prometheus/Grafana), enabling easy correlation.
+
+---
+
+## 🛠️ OpenTelemetry Configuration & Zipkin Integration
+
+* The OTLP endpoint is set via the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable (no hardcoded endpoints).
+* Traces are exported to the OTEL Collector, which forwards to Zipkin.
+* To analyze traces:
+  * Go to [http://localhost:9411](http://localhost:9411)
+  * Filter by `service.name = api-tests` and `test.run_id = <your_run_id>`
+* All test spans and metrics are linked by `test.run_id` and other shared attributes.
+
+---
+
+## 🔗 Span/Metric Linking
+
+* Every test span and metric shares the same `test.run_id`, `test.suite`, `test.class`, `test.name`, and `test.status`.
+* This enables direct correlation between traces (Zipkin) and metrics (Prometheus/Grafana).
+* Example: Find a failed test in Grafana, then search for its trace in Zipkin using the same `test.run_id` and `test.name`.
 
 ---
 

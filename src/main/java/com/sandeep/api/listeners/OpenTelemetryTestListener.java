@@ -3,6 +3,7 @@ package com.sandeep.api.listeners;
 
 import com.sandeep.api.config.OpenTelemetryConfig;
 import com.sandeep.api.config.PrometheusTestMetrics;
+import com.sandeep.api.util.TestRunIdUtil;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
@@ -30,22 +31,26 @@ public class OpenTelemetryTestListener implements ISuiteListener, IInvokedMethod
         openTelemetrySdk = (OpenTelemetrySdk) OpenTelemetryConfig.getOpenTelemetry();
         tracer = openTelemetrySdk.getTracer("api-tests");
 
+        currentTestRunId = TestRunIdUtil.resolveTestRunId(suite);
+
         Span suiteSpan = tracer.spanBuilder("suite: " + suite.getName())
-                             .setAttribute("suite.name", suite.getName())
-                             .startSpan();
+                           .setAttribute("test.suite", suite.getName())
+                           .setAttribute("test.run_id", currentTestRunId)
+                           .startSpan();
 
         suiteSpans.put(suite.getName(), suiteSpan);
-        suiteSpan.makeCurrent();
 
-        log.info("✅ OpenTelemetry initialized and suite span started for: {}", suite.getName());
+        try (Scope suiteScope = suiteSpan.makeCurrent()) {
+            log.info("✅ OpenTelemetry initialized and suite span started for: {}", suite.getName());
+            log.info("✅ Using test run ID: {}", currentTestRunId);
 
-        // Start Prometheus HTTPServer only once (delegated)
-        PrometheusTestMetrics.startServerIfNeeded();
+            // Start Prometheus HTTPServer only once (delegated)
+            PrometheusTestMetrics.startServerIfNeeded();
 
-        // Extract suite, aut, test_run_id using helper
-        currentSuiteName = suite.getName();
-        currentAut = PrometheusTestMetrics.extractAut(suite);
-        currentTestRunId = PrometheusTestMetrics.extractTestRunId(suite);
+            // Extract suite and aut using helper
+            currentSuiteName = suite.getName();
+            currentAut = PrometheusTestMetrics.extractAut(suite);
+        }
     }
 
     @Override
@@ -76,7 +81,8 @@ public class OpenTelemetryTestListener implements ISuiteListener, IInvokedMethod
                             .setAttribute("test.name", testName)
                             .setAttribute("test.class", className)
                             .setAttribute("test.description", method.getTestMethod().getDescription())
-                            .setAttribute("test.run_id", String.valueOf(System.currentTimeMillis()))
+                            .setAttribute("test.run_id", currentTestRunId)
+                            .setAttribute("test.suite", currentSuiteName)
                             .startSpan();
 
             Scope scope = span.makeCurrent();
