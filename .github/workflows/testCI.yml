@@ -15,6 +15,8 @@ jobs:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317"
       SERVICE_NAME: "api-test-automation"
       TEST_RUN_ID: ${{ github.run_id }}
+      AUT: "api-observability-demo" # Set your AUT name here or override in workflow dispatch
+      SUITE: "ApiTestSuite"         # Set your suite name here or override in workflow dispatch
 
     services:
       zipkin:
@@ -103,6 +105,8 @@ jobs:
           OTEL_EXPORTER_OTLP_ENDPOINT: ${{ env.OTEL_EXPORTER_OTLP_ENDPOINT }}
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
           TEST_RUN_ID: ${{ env.TEST_RUN_ID }}
+          AUT: ${{ env.AUT }}
+          SUITE: ${{ env.SUITE }}
 
       - name: Check Prometheus metrics endpoint
         run: |
@@ -129,3 +133,8 @@ jobs:
       - name: Verify traces in Zipkin
         run: |
           curl -s "http://localhost:9411/api/v2/traces?serviceName=${{ env.SERVICE_NAME }}" | jq .
+
+      - name: Keep metrics endpoint alive for Prometheus scrape
+        run: |
+          echo "Sleeping for 30s to allow Prometheus to scrape metrics after tests..."
+          sleep 30
