@@ -2,6 +2,7 @@ package com.sandeep.api.listeners;
 
 
 import com.sandeep.api.config.OpenTelemetryConfig;
+import com.sandeep.api.config.PrometheusTestMetrics;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
@@ -59,6 +60,9 @@ public class OpenTelemetryTestListener implements ISuiteListener, IInvokedMethod
             openTelemetrySdk.getSdkTracerProvider().shutdown();
             log.info("🧹 OpenTelemetry tracer provider shutdown after suite finish");
         }
+
+        // Push metrics to Pushgateway for short-lived jobs
+        PrometheusTestMetrics.pushMetricsToGateway();
     }
 
     @Override
