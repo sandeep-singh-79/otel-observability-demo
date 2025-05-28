@@ -15,8 +15,13 @@ jobs:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317"
       SERVICE_NAME: "api-test-automation"
       TEST_RUN_ID: ${{ github.run_id }}
-      AUT: "api-observability-demo" # Set your AUT name here or override in workflow dispatch
-      SUITE: "ApiTestSuite"         # Set your suite name here or override in workflow dispatch
+      AUT: "api-observability-demo"
+      SUITE: "ApiTestSuite"
+      PROMETHEUS_PORT: 9090
+      GRAFANA_PORT: 3000
+      ZIPKIN_PORT: 9411
+      OTEL_PORT: 4317
+      PUSHGATEWAY_PORT: 9091
 
     services:
       zipkin:
@@ -35,8 +40,7 @@ jobs:
         ports:
           - 9090:9090
         options: >-
-          --health-cmd="wget --spider --quiet http://localhost:9090/-/healthy || exit 1" \
-          --health-interval=10s --health-timeout=5s --health-retries=5
+          --health-cmd="wget --spider --quiet http://localhost:9090/-/healthy || exit 1" --health-interval=10s --health-timeout=5s --health-retries=5
         volumes:
           - ${{ github.workspace }}/prometheus.yml:/etc/prometheus/prometheus.yml
       grafana:
@@ -44,11 +48,16 @@ jobs:
         ports:
           - 3000:3000
         options: >-
-          --health-cmd="curl --fail http://localhost:3000/api/health || exit 1" \
-          --health-interval=10s --health-timeout=5s --health-retries=5
+          --health-cmd="curl --fail http://localhost:3030/api/health || exit 1" --health-interval=10s --health-timeout=5s --health-retries=5
         volumes:
           - ${{ github.workspace }}/grafana-dashboard-api-test-observability.json:/etc/grafana/provisioning/dashboards/api-test-observability.json
           - ${{ github.workspace }}/grafana-dashboard-provisioning.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml
+      pushgateway:
+        image: prom/pushgateway:latest
+        ports:
+          - 9091:9091
+        options: >-
+          --health-cmd="wget --spider --quiet http://localhost:9091/-/healthy || exit 1" --health-interval=10s --health-timeout=5s --health-retries=5
 
     steps:
       - name: Checkout repository
@@ -70,7 +79,7 @@ jobs:
       - name: Wait for Prometheus to be healthy
         run: |
           for i in {1..10}; do
-            if curl -sf http://localhost:9090/-/healthy; then exit 0; fi
+            if curl -sf http://localhost:${{ env.PROMETHEUS_PORT }}/-/healthy; then exit 0; fi
             sleep 5
           done
           exit 1
@@ -78,14 +87,14 @@ jobs:
       - name: Wait for Grafana to be healthy
         run: |
           for i in {1..10}; do
-            if curl -sf http://localhost:3000/api/health; then exit 0; fi
+            if curl -sf http://localhost:${{ env.GRAFANA_PORT }}/api/health; then exit 0; fi
             sleep 5
           done
           exit 1
 
       - name: Confirm Zipkin is running
         run: |
-          curl --fail http://localhost:9411/health || exit 1
+          curl --fail http://localhost:${{ env.ZIPKIN_PORT }}/health || exit 1
           echo "Zipkin is up!"
 
       - name: Check prometheus.yml presence in service container
@@ -99,6 +108,14 @@ jobs:
           fi
         continue-on-error: true
 
+      - name: Wait for Pushgateway to be healthy
+        run: |
+          for i in {1..10}; do
+            if curl -sf http://localhost:${{ env.PUSHGATEWAY_PORT }}/-/healthy; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+
       - name: Run tests with instrumentation
         run: mvn clean test
         env:
@@ -107,32 +124,38 @@ jobs:
           TEST_RUN_ID: ${{ env.TEST_RUN_ID }}
           AUT: ${{ env.AUT }}
           SUITE: ${{ env.SUITE }}
+          PUSHGATEWAY_PORT: ${{ env.PUSHGATEWAY_PORT }}
+          PUSHGATEWAY_ADDRESS: "localhost:${{ env.PUSHGATEWAY_PORT }}"
 
       - name: Check Prometheus metrics endpoint
         run: |
-          curl -sf http://localhost:9090/metrics | grep process_cpu_seconds_total
+          curl -sf http://localhost:${{ env.PROMETHEUS_PORT }}/metrics | grep process_cpu_seconds_total
 
       - name: Check Grafana dashboard provisioning
         run: |
-          curl -sf -u admin:admin http://localhost:3000/api/search?query=api-test-observability
+          curl -sf -u admin:admin http://localhost:${{ env.GRAFANA_PORT }}/api/search?query=api-test-observability
 
       - name: Verify test metrics in Prometheus
         run: |
           sleep 10 # Give Prometheus time to scrape metrics
-          curl -s "http://localhost:9090/api/v1/query?query=test_result_total" | jq .
+          curl -s "http://localhost:${{ env.PROMETHEUS_PORT }}/api/v1/query?query=test_result_total" | jq .
           # Fail if no results
-          curl -s "http://localhost:9090/api/v1/query?query=test_result_total" | grep '"status":"success"' || exit 1
+          curl -s "http://localhost:${{ env.PROMETHEUS_PORT }}/api/v1/query?query=test_result_total" | grep '"status":"success"' || exit 1
           echo "Prometheus metrics found!"
 
       - name: Verify Grafana dashboard is present
         run: |
           sleep 10 # Give Grafana time to provision dashboards
-          curl -s -u admin:admin "http://localhost:3000/api/search?query=API%20Test%20Observability" | grep 'API Test Observability' || exit 1
+          curl -s -u admin:admin "http://localhost:${{ env.GRAFANA_PORT }}/api/search?query=API%20Test%20Observability" | grep 'API Test Observability' || exit 1
           echo "Grafana dashboard found!"
 
       - name: Verify traces in Zipkin
         run: |
-          curl -s "http://localhost:9411/api/v2/traces?serviceName=${{ env.SERVICE_NAME }}" | jq .
+          curl -s "http://localhost:${{ env.ZIPKIN_PORT }}/api/v2/traces?serviceName=${{ env.SERVICE_NAME }}" | jq .
+
+      - name: Check Pushgateway metrics endpoint
+        run: |
+          curl -sf http://localhost:${{ env.PUSHGATEWAY_PORT }}/metrics | grep test_result_total
 
       - name: Keep metrics endpoint alive for Prometheus scrape
         run: |

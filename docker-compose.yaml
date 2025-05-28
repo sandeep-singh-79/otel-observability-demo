@@ -3,7 +3,7 @@ services:
   zipkin:
     image: openzipkin/zipkin:latest
     ports:
-      - "9411:9411"
+      - "${ZIPKIN_PORT:-9411}:9411" # default 9411
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:9411/health"]
       interval: 10s
@@ -16,8 +16,8 @@ services:
       - ./otel-collector-config.yml:/etc/otel-collector-config.yml
     command: ["--config=/etc/otel-collector-config.yml"]
     ports:
-      - "4317:4317"
-      - "8889:8889" # Prometheus metrics endpoint (default for otelcol-contrib)
+      - "${OTEL_PORT:-4317}:4317" # default 4317
+      - "${OTEL_PROM_PORT:-8889}:8889" # default 8889
     depends_on:
       - zipkin
     environment:
@@ -26,7 +26,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090" # default 9090
     healthcheck:
       test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:9090/-/healthy"]
       interval: 10s
@@ -40,7 +40,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000" # default 3000
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:3000/api/health"]
       interval: 10s
@@ -57,7 +57,7 @@ services:
   pushgateway:
     image: prom/pushgateway:latest
     ports:
-      - "9091:9091"
+      - "${PUSHGATEWAY_PORT:-9091}:9091" # default 9091
     healthcheck:
       test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:9091/-/healthy"]
       interval: 10s

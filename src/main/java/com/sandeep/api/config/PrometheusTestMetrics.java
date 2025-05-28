@@ -1,5 +1,6 @@
 package com.sandeep.api.config;
 
+import com.sandeep.api.util.TestRunIdUtil;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import io.prometheus.client.exporter.HTTPServer;
@@ -14,24 +15,26 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class PrometheusTestMetrics {
-    private static final String LABEL_SUITE = "suite";
+    private static final String LABEL_TEST_SUITE = "test.suite";
     private static final String LABEL_AUT = "aut";
-    private static final String LABEL_TEST_RUN_ID = "test_run_id";
-    private static final String LABEL_TEST_CLASS = "test_class";
-    private static final String LABEL_TEST_NAME = "test_name";
-    private static final String LABEL_STATUS = "status";
+    private static final String LABEL_TEST_RUN_ID = "test.run_id";
+    private static final String LABEL_TEST_CLASS = "test.class";
+    private static final String LABEL_TEST_NAME = "test.name";
+    private static final String LABEL_STATUS = "test.status";
+    private static final String UNKNOWN = "unknown";
+    private static final String ENV_TEST_RUN_ID = "test_run_id";
 
     private PrometheusTestMetrics() { /* Utility class */ }
 
     private static final Counter testResultCounter = Counter.build()
             .name("test_result_total")
             .help("Total number of test results by status.")
-            .labelNames(LABEL_SUITE, LABEL_AUT, LABEL_TEST_RUN_ID, LABEL_TEST_CLASS, LABEL_TEST_NAME, LABEL_STATUS)
+            .labelNames(LABEL_TEST_SUITE, LABEL_AUT, LABEL_TEST_RUN_ID, LABEL_TEST_CLASS, LABEL_TEST_NAME, LABEL_STATUS)
             .register();
     private static final Histogram testDurationHistogram = Histogram.build()
             .name("test_duration_seconds")
             .help("Test execution duration in seconds.")
-            .labelNames(LABEL_SUITE, LABEL_AUT, LABEL_TEST_RUN_ID, LABEL_TEST_CLASS, LABEL_TEST_NAME, LABEL_STATUS)
+            .labelNames(LABEL_TEST_SUITE, LABEL_AUT, LABEL_TEST_RUN_ID, LABEL_TEST_CLASS, LABEL_TEST_NAME, LABEL_STATUS)
             .register();
     private static final AtomicReference<HTTPServer> prometheusServer = new AtomicReference<>();
     private static final Object serverLock = new Object();
@@ -64,18 +67,11 @@ public class PrometheusTestMetrics {
         if (StringUtils.isBlank(aut) && suite.getAttribute("aut") != null) {
             aut = suite.getAttribute("aut").toString();
         }
-        return (StringUtils.isNotBlank(aut)) ? aut : "unknown";
+        return (StringUtils.isNotBlank(aut)) ? aut : UNKNOWN;
     }
 
     public static String extractTestRunId(ISuite suite) {
-        String testRunId = System.getenv("TEST_RUN_ID");
-        if (StringUtils.isBlank(testRunId)) {
-            testRunId = System.getProperty("test_run_id");
-        }
-        if (StringUtils.isBlank(testRunId) && suite.getAttribute("test_run_id") != null) {
-            testRunId = suite.getAttribute("test_run_id").toString();
-        }
-        return (StringUtils.isNotBlank(testRunId)) ? testRunId : "unknown";
+        return TestRunIdUtil.resolveTestRunId(suite);
     }
 
     public static void pushMetricsToGateway() {
@@ -84,9 +80,9 @@ public class PrometheusTestMetrics {
         try {
             // Use a grouping key for uniqueness (e.g., test_run_id, aut, suite)
             java.util.Map<String, String> groupingKey = new java.util.HashMap<>();
-            groupingKey.put("test_run_id", System.getenv().getOrDefault("TEST_RUN_ID", "unknown"));
-            groupingKey.put("aut", System.getenv().getOrDefault("AUT", "unknown"));
-            groupingKey.put("suite", System.getenv().getOrDefault("SUITE", "unknown"));
+            groupingKey.put(ENV_TEST_RUN_ID, System.getenv().getOrDefault("TEST_RUN_ID", UNKNOWN));
+            groupingKey.put("aut", System.getenv().getOrDefault("AUT", UNKNOWN));
+            groupingKey.put("suite", System.getenv().getOrDefault("SUITE", UNKNOWN));
             pushGateway.pushAdd(io.prometheus.client.CollectorRegistry.defaultRegistry, "api_test_automation", groupingKey);
         } catch (IOException e) {
             log.error("Failed to push metrics to Pushgateway", e);

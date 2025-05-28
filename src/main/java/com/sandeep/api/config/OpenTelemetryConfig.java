@@ -29,8 +29,11 @@ public class OpenTelemetryConfig {
                                                .put("environment", System.getProperty("env", "dev"))
                                                .build();
 
+            String otlpEndpoint = System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != null ?
+                    System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT") :
+                    "http://localhost:4317";
             OtlpGrpcSpanExporter spanExporter = OtlpGrpcSpanExporter.builder()
-                                                    .setEndpoint("http://localhost:4317")
+                                                    .setEndpoint(otlpEndpoint)
                                                     .build();
 
             SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
