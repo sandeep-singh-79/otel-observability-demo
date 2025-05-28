@@ -4,6 +4,11 @@ services:
     image: openzipkin/zipkin:latest
     ports:
       - "9411:9411"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:9411/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
@@ -20,10 +25,15 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
     depends_on:
       - otel-collector
 
@@ -31,6 +41,11 @@ services:
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - ./grafana-dashboard-api-test-observability.json:/etc/grafana/provisioning/dashboards/grafana-dashboard-api-test-observability.json
       - ./grafana-dashboard-provisioning.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml
@@ -38,3 +53,13 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
+
+  pushgateway:
+    image: prom/pushgateway:latest
+    ports:
+      - "9091:9091"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:9091/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

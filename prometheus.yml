@@ -7,6 +7,6 @@ scrape_configs:
     static_configs:
       - targets: ['otel-collector:8889']
 
-  - job_name: 'api-test-automation-jvm'
+  - job_name: 'pushgateway'
     static_configs:
-      - targets: ['host.docker.internal:8081']
+      - targets: ['host.docker.internal:9091']

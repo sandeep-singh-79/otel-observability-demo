@@ -1,12 +1,15 @@
-package com.sandeep.api.listeners;
+package com.sandeep.api.config;
 
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import io.prometheus.client.exporter.HTTPServer;
+import io.prometheus.client.exporter.PushGateway;
 import io.prometheus.client.hotspot.DefaultExports;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.testng.ISuite;
 
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
@@ -55,23 +58,38 @@ public class PrometheusTestMetrics {
 
     public static String extractAut(ISuite suite) {
         String aut = System.getenv("AUT");
-        if (aut == null || aut.isEmpty()) {
+        if (StringUtils.isBlank(aut)) {
             aut = System.getProperty("aut");
         }
-        if ((aut == null || aut.isEmpty()) && suite.getAttribute("aut") != null) {
+        if (StringUtils.isBlank(aut) && suite.getAttribute("aut") != null) {
             aut = suite.getAttribute("aut").toString();
         }
-        return (aut != null && !aut.isEmpty()) ? aut : "unknown";
+        return (StringUtils.isNotBlank(aut)) ? aut : "unknown";
     }
 
     public static String extractTestRunId(ISuite suite) {
         String testRunId = System.getenv("TEST_RUN_ID");
-        if (testRunId == null || testRunId.isEmpty()) {
+        if (StringUtils.isBlank(testRunId)) {
             testRunId = System.getProperty("test_run_id");
         }
-        if ((testRunId == null || testRunId.isEmpty()) && suite.getAttribute("test_run_id") != null) {
+        if (StringUtils.isBlank(testRunId) && suite.getAttribute("test_run_id") != null) {
             testRunId = suite.getAttribute("test_run_id").toString();
         }
-        return (testRunId != null && !testRunId.isEmpty()) ? testRunId : "unknown";
+        return (StringUtils.isNotBlank(testRunId)) ? testRunId : "unknown";
+    }
+
+    public static void pushMetricsToGateway() {
+        String gatewayAddress = System.getenv().getOrDefault("PUSHGATEWAY_ADDRESS", "localhost:9091");
+        PushGateway pushGateway = new PushGateway(gatewayAddress);
+        try {
+            // Use a grouping key for uniqueness (e.g., test_run_id, aut, suite)
+            java.util.Map<String, String> groupingKey = new java.util.HashMap<>();
+            groupingKey.put("test_run_id", System.getenv().getOrDefault("TEST_RUN_ID", "unknown"));
+            groupingKey.put("aut", System.getenv().getOrDefault("AUT", "unknown"));
+            groupingKey.put("suite", System.getenv().getOrDefault("SUITE", "unknown"));
+            pushGateway.pushAdd(io.prometheus.client.CollectorRegistry.defaultRegistry, "api_test_automation", groupingKey);
+        } catch (IOException e) {
+            log.error("Failed to push metrics to Pushgateway", e);
+        }
     }
 }
