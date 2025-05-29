@@ -13,6 +13,7 @@ import io.restassured.response.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -26,6 +27,8 @@ import static io.restassured.http.Method.GET;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 @Slf4j
+@Listeners(value = {com.sandeep.api.listeners.OpenTelemetryTestListener.class, 
+                    com.aventstack.extentreports.testng.listener.ExtentITestListenerClassAdapter.class})
 public class JsonSchemaValidationTest extends BaseAPITest {
 
     @BeforeMethod

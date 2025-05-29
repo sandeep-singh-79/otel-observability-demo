@@ -27,7 +27,7 @@ The framework is organized into clean, isolated modules:
 | Module 0 | ✅ Local instrumentation + Zipkin verification                |
 | Module 1 | ✅ GitHub Actions CI integration with OTEL Collector & Zipkin |
 | Module 2 | ✅ OpenTelemetry spans for every TestNG method                |
-| Module 3 | 🔄 Prometheus + Grafana metrics reporting (WIP)              |
+| Module 3 | ✅ Prometheus + Grafana metrics reporting                     |
 | Module 4 | 📘 Documentation, portfolio/blog showcase (Ongoing)          |
 
 ---
@@ -35,20 +35,36 @@ The framework is organized into clean, isolated modules:
 ## 📂 Directory Structure
 
 ```bash
-├── /src/test/java
-│   ├── /com/sandeep/api/tests
-│   │   ├── contract/pact/...          # CDC tests (PactConsumerTest)
-│   │   ├── mocking/wiremock/...      # WireMock based mocking tests
-│   │   ├── observability/...         # OpenTelemetry listeners
-│   │   └── ...
-│
-├── /otel-config
-│   └── otel-collector-config.yml     # OTEL Collector pipeline
-│
-├── docker-config.yml                 # Brings up OTEL Collector + Zipkin
-├── testng.xml
+├── src/
+│   ├── main/
+│   │   ├── java/com/sandeep/api/...         # Main Java source code
+│   │   └── resources/
+│   │       ├── frameworkConfig.properties
+│   │       └── logback.xml
+│   └── test/
+│       ├── java/com/sandeep/api/tests/...   # Test classes
+│       └── resources/
+│           ├── extent-config.xml
+│           ├── extent.properties
+│           ├── logback-test.xml
+│           ├── testng_api_suite.xml
+│           ├── pacts/
+│           └── test_data/
+├── otel-collector-config.yml                # OTEL Collector pipeline
+├── docker-compose.yaml                      # Brings up all observability services
+├── DockerfileBrowser                        # (if present) for browser-based containers
+├── grafana-dashboard-api-test-observability.json
+├── grafana-dashboard-provisioning.yaml
+├── prometheus.yml
 ├── pom.xml
-└── README.md
+├── README.md
+├── log/                                     # Framework logs
+│   └── frameworkLog.<date>.<n>.log
+├── target/
+│   ├── surefire-reports/                    # TestNG/Maven Surefire reports
+│   ├── classes/
+│   ├── test-classes/
+│   └── ...
 ```
 
 ---
@@ -83,15 +99,15 @@ GitHub Actions auto-runs the same setup with containerized OTEL Collector & Zipk
 
 ---
 
-## 📊 Metrics + Dashboards (Module 3 - WIP)
+## 📊 Metrics + Dashboards (Module 3)
 
-Planned:
+All metrics and dashboards are now fully implemented and integrated:
 
-* Prometheus scraping OTEL metrics
-* Grafana dashboard templates for:
-
+* Prometheus scrapes metrics from the Pushgateway (not OTEL Collector)
+* Grafana dashboard templates are included for:
     * Test outcomes per suite
-    * Duration trends per TEST\_RUN\_ID
+    * Duration trends per TEST_RUN_ID
+* Metrics and dashboards are validated in both local and CI environments
 
 ---
 
@@ -125,7 +141,7 @@ The test framework exposes custom Prometheus metrics:
 **Example Prometheus Query:**
 
 ```promql
-test_result_total{status="PASS"}
+test_result_total{test_run_id="local-test", aut="my-app-under-test", suite="MyTestSuite"}
 ```
 
 ---
@@ -134,22 +150,23 @@ test_result_total{status="PASS"}
 
 This project now uses the [Prometheus Pushgateway](https://prometheus.io/docs/practices/pushing/) for test metrics. This is ideal for short-lived test jobs, as metrics are pushed at the end of the test run and scraped by Prometheus from the Pushgateway.
 
-- The Pushgateway is started as a service via `docker-compose` on port `9091`.
-- Your test framework pushes metrics to the Pushgateway after the suite finishes.
-- Prometheus is configured to scrape the Pushgateway (see `prometheus.yml`).
-- No need to expose the Prometheus HTTPServer endpoint from the test JVM.
+* The Pushgateway is started as a service via `docker-compose` on port `9091`.
+* Your test framework pushes metrics to the Pushgateway after the suite finishes.
+* Prometheus is configured to scrape the Pushgateway (see `prometheus.yml`).
+* **The Prometheus HTTPServer endpoint from the test JVM and the otel-collector Prometheus endpoint are both disabled and not scraped.**
 
 ## 🛠️ Quick Start (Updated for Pushgateway)
 
 1. **Start all services locally:**
 
    ```powershell
-   docker-compose up
+   docker-compose up -d
    ```
 
 2. **Run tests (PowerShell):**
 
    ```powershell
+   # Using environment variables (legacy style)
    $env:TEST_RUN_ID = "local-test"
    $env:AUT = "my-app-under-test"
    $env:SUITE = "MyTestSuite"
@@ -161,16 +178,25 @@ This project now uses the [Prometheus Pushgateway](https://prometheus.io/docs/pr
    $env:TEST_RUN_ID="local-test"; $env:AUT="my-app-under-test"; $env:SUITE="MyTestSuite"; $env:PUSHGATEWAY_ADDRESS="localhost:9091"; mvn clean test
    ```
 
+   **Or using Maven command-line parameters (recommended):**
+   ```powershell
+   mvn clean test -Dtest_run_id=local-test -Daut=my-app-under-test -Dsuite=MyTestSuite -Dpushgateway_address=localhost:9091
+   ```
+
    For Bash (Linux/macOS):
    ```bash
+   # Using environment variables
    TEST_RUN_ID=local-test AUT=my-app-under-test SUITE=MyTestSuite PUSHGATEWAY_ADDRESS=localhost:9091 mvn clean test
+   
+   # Or using Maven command-line parameters (recommended)
+   mvn clean test -Dtest_run_id=local-test -Daut=my-app-under-test -Dsuite=MyTestSuite -Dpushgateway_address=localhost:9091
    ```
 
 3. **View dashboards and metrics:**
 
-   - Grafana: [http://localhost:3000](http://localhost:3000)
-   - Prometheus: [http://localhost:9090](http://localhost:9090)
-   - Pushgateway: [http://localhost:9091](http://localhost:9091)
+   * Grafana: [http://localhost:3000](http://localhost:3000)
+   * Prometheus: [http://localhost:9090](http://localhost:9090)
+   * Pushgateway: [http://localhost:9091](http://localhost:9091)
 
 ---
 
@@ -193,7 +219,7 @@ All observability service ports are now configurable via environment variables (
 | -------------- | --------------------------- | ------- |
 | Zipkin         | `ZIPKIN_PORT`               | 9411    |
 | OTEL Collector | `OTEL_PORT`                 | 4317    |
-| OTEL Prometheus| `OTEL_PROM_PORT`            | 8889    |
+| OTEL Prometheus| `OTEL_PROM_PORT`            | 8889 (DISABLED: not exposed, no longer scraped)   |
 | Prometheus     | `PROMETHEUS_PORT`           | 9090    |
 | Grafana        | `GRAFANA_PORT`              | 3000    |
 | Pushgateway    | `PUSHGATEWAY_PORT`          | 9091    |
@@ -212,11 +238,11 @@ All span attributes and Prometheus metric labels follow OpenTelemetry semantic c
 
 | OpenTelemetry Attribute | Prometheus Label | Description                |
 |------------------------|------------------|----------------------------|
-| `test.suite`           | `test.suite`     | Test suite name            |
-| `test.class`           | `test.class`     | Test class name            |
-| `test.name`            | `test.name`      | Test method name           |
-| `test.status`          | `test.status`    | Test result (pass/fail)    |
-| `test.run_id`          | `test.run_id`    | Unique test run/session ID |
+| `test_suite`           | `test_suite`     | Test suite name            |
+| `test_class`           | `test_class`     | Test class name            |
+| `test_name`            | `test_name`      | Test method name           |
+| `test_status`          | `test_status`    | Test result (pass/fail)    |
+| `test_run_id`          | `test_run_id`    | Unique test run/session ID |
 | `aut`                  | `aut`            | App under test             |
 
 These attributes are used for both tracing (OpenTelemetry/Zipkin) and metrics (Prometheus/Grafana), enabling easy correlation.
@@ -229,16 +255,16 @@ These attributes are used for both tracing (OpenTelemetry/Zipkin) and metrics (P
 * Traces are exported to the OTEL Collector, which forwards to Zipkin.
 * To analyze traces:
   * Go to [http://localhost:9411](http://localhost:9411)
-  * Filter by `service.name = api-tests` and `test.run_id = <your_run_id>`
-* All test spans and metrics are linked by `test.run_id` and other shared attributes.
+  * Filter by `service.name = api-tests` and `test_run_id = <your_run_id>`
+* All test spans and metrics are linked by `test_run_id` and other shared attributes.
 
 ---
 
 ## 🔗 Span/Metric Linking
 
-* Every test span and metric shares the same `test.run_id`, `test.suite`, `test.class`, `test.name`, and `test.status`.
+* Every test span and metric shares the same `test_run_id`, `test_suite`, `test_class`, `test_name`, and `test_status`.
 * This enables direct correlation between traces (Zipkin) and metrics (Prometheus/Grafana).
-* Example: Find a failed test in Grafana, then search for its trace in Zipkin using the same `test.run_id` and `test.name`.
+* Example: Find a failed test in Grafana, then search for its trace in Zipkin using the same `test_run_id` and `test_name`.
 
 ---
 
@@ -261,8 +287,7 @@ This repo is based on and inspired by the original open-source work at:
 
 ## 📌 Status
 
-✅ Modules 0–2 complete
-🔄 Module 3 in progress
+✅ Modules 0–3 complete
 📘 Docs ongoing
 
 ---
