@@ -12,6 +12,7 @@ import io.opentelemetry.context.Scope;
 import io.restassured.response.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -25,6 +26,8 @@ import static org.apache.commons.io.FileUtils.readFileToString;
 import static org.awaitility.Awaitility.await;
 
 @Slf4j
+@Listeners(value = {com.sandeep.api.listeners.OpenTelemetryTestListener.class, 
+                    com.aventstack.extentreports.testng.listener.ExtentITestListenerClassAdapter.class})
 public class APIAwaitilityTest extends BaseAPITest {
     @BeforeMethod
     public void initTestSetup() {

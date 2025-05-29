@@ -32,7 +32,8 @@ jobs:
         image: otel/opentelemetry-collector-contrib:latest
         ports:
           - 4317:4317  # OTLP gRPC
-          - 55681:55681 # OTLP HTTP
+          # - 8889:8889 # OTEL Prometheus metrics endpoint (DISABLED: not exposed)
+          # - 55681:55681 # OTLP HTTP (optional, not used)
         volumes:
           - ./otel-collector-config.yml:/etc/otelcol/config.yaml
       prometheus:
@@ -41,17 +42,12 @@ jobs:
           - 9090:9090
         options: >-
           --health-cmd="wget --spider --quiet http://localhost:9090/-/healthy || exit 1" --health-interval=10s --health-timeout=5s --health-retries=5
-        volumes:
-          - ${{ github.workspace }}/prometheus.yml:/etc/prometheus/prometheus.yml
       grafana:
         image: grafana/grafana:latest
         ports:
           - 3000:3000
         options: >-
-          --health-cmd="curl --fail http://localhost:3030/api/health || exit 1" --health-interval=10s --health-timeout=5s --health-retries=5
-        volumes:
-          - ${{ github.workspace }}/grafana-dashboard-api-test-observability.json:/etc/grafana/provisioning/dashboards/api-test-observability.json
-          - ${{ github.workspace }}/grafana-dashboard-provisioning.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml
+          --health-cmd="curl --fail http://localhost:3000/api/health || exit 1" --health-interval=10s --health-timeout=5s --health-retries=5
       pushgateway:
         image: prom/pushgateway:latest
         ports:
@@ -75,6 +71,42 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven
+
+      - name: Copy Prometheus and Grafana configs, then restart containers
+        run: |
+          echo "Waiting briefly for service containers to initialize..."
+          sleep 15 # Give services time to start
+
+          # Prometheus
+          PROM_CONTAINER_ID=$(docker ps --filter "ancestor=prom/prometheus:latest" --format "{{.ID}}")
+          if [ -z "$PROM_CONTAINER_ID" ]; then
+            echo "Error: Prometheus container not found."
+            docker ps -a # List all containers for debugging
+            exit 1
+          fi
+          echo "Found Prometheus container ID: $PROM_CONTAINER_ID"
+          echo "Copying prometheus.yml to $PROM_CONTAINER_ID:/etc/prometheus/prometheus.yml"
+          docker cp ${{ github.workspace }}/prometheus.yml $PROM_CONTAINER_ID:/etc/prometheus/prometheus.yml
+          echo "Restarting Prometheus container: $PROM_CONTAINER_ID"
+          docker restart $PROM_CONTAINER_ID
+
+          # Grafana
+          GRAFANA_CONTAINER_ID=$(docker ps --filter "ancestor=grafana/grafana:latest" --format "{{.ID}}")
+          if [ -z "$GRAFANA_CONTAINER_ID" ]; then
+            echo "Error: Grafana container not found."
+            docker ps -a # List all containers for debugging
+            exit 1
+          fi
+          echo "Found Grafana container ID: $GRAFANA_CONTAINER_ID"
+          echo "Copying grafana-dashboard-api-test-observability.json to $GRAFANA_CONTAINER_ID:/etc/grafana/provisioning/dashboards/api-test-observability.json"
+          docker cp ${{ github.workspace }}/grafana-dashboard-api-test-observability.json $GRAFANA_CONTAINER_ID:/etc/grafana/provisioning/dashboards/api-test-observability.json
+          echo "Copying grafana-dashboard-provisioning.yaml to $GRAFANA_CONTAINER_ID:/etc/grafana/provisioning/dashboards/dashboard.yaml"
+          docker cp ${{ github.workspace }}/grafana-dashboard-provisioning.yaml $GRAFANA_CONTAINER_ID:/etc/grafana/provisioning/dashboards/dashboard.yaml
+          echo "Restarting Grafana container: $GRAFANA_CONTAINER_ID"
+          docker restart $GRAFANA_CONTAINER_ID
+
+          echo "Waiting for Prometheus and Grafana to apply new configuration..."
+          sleep 10 # Allow time for restart and config load
 
       - name: Wait for Prometheus to be healthy
         run: |

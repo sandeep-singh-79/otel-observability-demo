@@ -15,6 +15,7 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.restassured.response.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
 import static au.com.dius.pact.consumer.ConsumerPactRunnerKt.runConsumerTest;
@@ -25,6 +26,8 @@ import static java.lang.String.format;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
+@Listeners(value = {com.sandeep.api.listeners.OpenTelemetryTestListener.class, 
+                    com.aventstack.extentreports.testng.listener.ExtentITestListenerClassAdapter.class})
 public class PactConsumerTest {
     private Response response;
 
