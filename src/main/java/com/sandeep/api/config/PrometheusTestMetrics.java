@@ -15,12 +15,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class PrometheusTestMetrics {
-    private static final String LABEL_TEST_SUITE = "test.suite";
+    // Use Prometheus-compliant label names (no dots, only [a-zA-Z_][a-zA-Z0-9_]* )
+    private static final String LABEL_TEST_SUITE = "test_suite";
     private static final String LABEL_AUT = "aut";
-    private static final String LABEL_TEST_RUN_ID = "test.run_id";
-    private static final String LABEL_TEST_CLASS = "test.class";
-    private static final String LABEL_TEST_NAME = "test.name";
-    private static final String LABEL_STATUS = "test.status";
+    private static final String LABEL_TEST_RUN_ID = "test_run_id";
+    private static final String LABEL_TEST_CLASS = "test_class";
+    private static final String LABEL_TEST_NAME = "test_name";
+    private static final String LABEL_STATUS = "test_status";
     private static final String UNKNOWN = "unknown";
     private static final String ENV_TEST_RUN_ID = "test_run_id";
 
@@ -55,6 +56,7 @@ public class PrometheusTestMetrics {
     }
 
     public static void recordTestResult(String suite, String aut, String testRunId, String className, String testName, String status, double durationSeconds) {
+        log.debug("PrometheusTestMetrics.recordTestResult: suite={}, aut={}, testRunId={}, className={}, testName={}, status={}, durationSeconds={}", suite, aut, testRunId, className, testName, status, durationSeconds);
         testResultCounter.labels(suite, aut, testRunId, className, testName, status).inc();
         testDurationHistogram.labels(suite, aut, testRunId, className, testName, status).observe(durationSeconds);
     }
