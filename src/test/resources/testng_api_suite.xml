@@ -4,13 +4,14 @@
     <listeners>
         <!--<listener class-name="RetryListener" />-->
         <listener class-name="com.aventstack.extentreports.testng.listener.ExtentITestListenerClassAdapter"/>
+        <listener class-name="com.sandeep.api.listeners.OpenTelemetryTestListener" />
     </listeners>
 
-    <!--<test name="Pact Contract Tests">
+    <test name="Pact Contract Tests">
         <classes>
             <class name="com.sandeep.api.tests.contract.pact.PactConsumerTest" />
         </classes>
-    </test>-->
+    </test>
 
     <test name="API Tests With Virtualization" parallel="classes" thread-count="5">
         <classes>

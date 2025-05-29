@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.sandeep</groupId>
-    <artifactId>api-automation-framework</artifactId>
+    <artifactId>OpenTelemetry-Automation-Demo</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -17,6 +17,8 @@
         <env.qa>qa</env.qa>
         <surefire.version>3.5.3</surefire.version>
         <java.version>17</java.version>
+        <opentelemetry-sdk.version>1.50.0</opentelemetry-sdk.version>
+        <opentelemetry-exporter-otlp.version>1.50.0</opentelemetry-exporter-otlp.version>
     </properties>
 
     <dependencies>
@@ -96,7 +98,46 @@
             <artifactId>consumer</artifactId>
             <version>4.6.17</version>
         </dependency>
-
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+            <version>${opentelemetry-sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk</artifactId>
+            <version>${opentelemetry-sdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+            <version>${opentelemetry-exporter-otlp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-semconv</artifactId>
+            <version> 1.24.0-alpha</version> <!-- Use the version matching your OpenTelemetry SDK -->
+        </dependency>
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient</artifactId>
+            <version>0.16.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient_hotspot</artifactId>
+            <version>0.16.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient_httpserver</artifactId>
+            <version>0.16.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient_pushgateway</artifactId>
+            <version>0.16.0</version>
+        </dependency>
     </dependencies>
 
     <profiles>
@@ -114,7 +155,6 @@
                                 <pact.rootDir>src/test/resources/pacts</pact.rootDir>
                             </systemPropertyVariables>
                             <argLine>-Xmx1024m</argLine>
-                            <argLine>-XX:MaxPermSize=512m</argLine>
                             <suiteXmlFiles>
                                 <suiteXmlFile>./src/test/resources/testng_api_suite.xml</suiteXmlFile>
                             </suiteXmlFiles>
@@ -137,7 +177,6 @@
                                 <pact.rootDir>./src/test/resources/pacts</pact.rootDir>
                             </systemPropertyVariables>
                             <argLine>-Xmx1024m</argLine>
-                            <argLine>-XX:MaxPermSize=512m</argLine>
                             <suiteXmlFiles>
                                 <suiteXmlFile>./src/test/resources/testng_api_suite.xml</suiteXmlFile>
                             </suiteXmlFiles>
@@ -146,41 +185,6 @@
                 </plugins>
             </build>
         </profile>
-        <!--<profile>
-            <id>qa_bdd</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-surefire-plugin</artifactId>
-                        <version>${surefire.version}</version>
-                        <configuration>
-                            &lt;!&ndash;<parallel>methods</parallel>
-                            <threadCount>3</threadCount>
-                            <perCoreThreadCount>false</perCoreThreadCount>
-                            <properties>
-                                <property>
-                                    <name>dataproviderthreadcount</name>
-                                    <value>3</value>
-                                </property>
-                            </properties>&ndash;&gt;
-                            <systemPropertyVariables>
-                                &lt;!&ndash; need to provide user, userpass & cucumber.options for tags while calling maven &ndash;&gt;
-                                <env>${env.qa}</env>
-                                <browser>${browser}</browser>
-                                <driverType>${driverType}</driverType>
-                                <headless>${headless}</headless>
-                            </systemPropertyVariables>
-                            <argLine>-Xmx1024m</argLine>
-                            <argLine>-XX:MaxPermSize=512m</argLine>
-                            <suiteXmlFiles>
-                                <suiteXmlFile>./src/test/resources/testng_functional_suite.xml</suiteXmlFile>
-                            </suiteXmlFiles>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>-->
     </profiles>
 
     <build>
