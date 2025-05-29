@@ -278,6 +278,22 @@ These attributes are used for both tracing (OpenTelemetry/Zipkin) and metrics (P
 
 ---
 
+## CI/CD Pipeline (GitHub Actions)
+
+This project uses GitHub Actions for CI/CD. The workflow is defined in `.github/workflows/testCI.yml` and performs the following key steps:
+
+- Spins up the observability stack (Prometheus, Grafana, Zipkin, Pushgateway, OTEL Collector) as Docker service containers.
+- **Copies Prometheus and Grafana configuration files into their respective containers after startup, then restarts the containers.** This is necessary because GitHub Actions runners sometimes have issues with direct volume mounting of config files. The workflow ensures the latest configs are always loaded.
+- Waits for all services to become healthy.
+- Runs the full test suite with OpenTelemetry and Prometheus instrumentation.
+- Verifies that metrics, traces, and dashboards are available and correct.
+
+For full details, see the [`testCI.yml`](.github/workflows/testCI.yml) file.
+
+**Note:** You do not need to manually copy config files when running locally with `docker-compose up -d`—the volume mounts work as expected outside of CI.
+
+---
+
 ## 📎 Attribution
 
 This repo is based on and inspired by the original open-source work at:
@@ -288,7 +304,7 @@ This repo is based on and inspired by the original open-source work at:
 ## 📌 Status
 
 ✅ Modules 0–3 complete
-📘 Docs ongoing
+✅ CI/CD pipeline and documentation complete
 
 ---
 
