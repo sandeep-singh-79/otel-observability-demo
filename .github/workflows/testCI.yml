@@ -12,6 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MAVEN_OPTS: "-Dmaven.repo.local=${{ github.workspace }}/repository"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317"
+      SERVICE_NAME: "api-test-automation"
+      TEST_RUN_ID: ${{ github.run_id }}
+      AUT: "api-observability-demo"
+      SUITE: "ApiTestSuite"
+      PROMETHEUS_PORT: 9090
+      GRAFANA_PORT: 3000
+      ZIPKIN_PORT: 9411
+      OTEL_PORT: 4317
+      PUSHGATEWAY_PORT: 9091
 
     services:
       zipkin:
@@ -22,7 +32,8 @@ jobs:
         image: otel/opentelemetry-collector-contrib:latest
         ports:
           - 4317:4317  # OTLP gRPC
-          - 55681:55681 # OTLP HTTP
+          # - 8889:8889 # OTEL Prometheus metrics endpoint (DISABLED: not exposed)
+          # - 55681:55681 # OTLP HTTP (optional, not used)
         volumes:
           - ./otel-collector-config.yml:/etc/otelcol/config.yaml
       prometheus:
@@ -30,20 +41,19 @@ jobs:
         ports:
           - 9090:9090
         options: >-
-          --health-cmd="wget --spider --quiet http://localhost:9090/-/healthy || exit 1" \
-          --health-interval=10s --health-timeout=5s --health-retries=5
-        volumes:
-          - ${{ github.workspace }}/prometheus.yml:/etc/prometheus/prometheus.yml
+          --health-cmd="wget --spider --quiet http://localhost:9090/-/healthy || exit 1" --health-interval=10s --health-timeout=5s --health-retries=5
       grafana:
         image: grafana/grafana:latest
         ports:
           - 3000:3000
         options: >-
-          --health-cmd="curl --fail http://localhost:3000/api/health || exit 1" \
-          --health-interval=10s --health-timeout=5s --health-retries=5
-        volumes:
-          - ${{ github.workspace }}/grafana-dashboard-api-test-observability.json:/etc/grafana/provisioning/dashboards/api-test-observability.json
-          - ${{ github.workspace }}/grafana-dashboard-provisioning.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml
+          --health-cmd="curl --fail http://localhost:3000/api/health || exit 1" --health-interval=10s --health-timeout=5s --health-retries=5
+      pushgateway:
+        image: prom/pushgateway:latest
+        ports:
+          - 9091:9091
+        options: >-
+          --health-cmd="wget --spider --quiet http://localhost:9091/-/healthy || exit 1" --health-interval=10s --health-timeout=5s --health-retries=5
 
     steps:
       - name: Checkout repository
@@ -55,43 +65,71 @@ jobs:
           java-version: '17'
           distribution: 'adopt'
 
-      # - name: Cache Maven repository
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: "${{ github.workspace }}/repository"
-      #     key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-maven-
-      #       ${{ runner.os }}-
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven
 
-      - name: Build with Maven
-        run: mvn -B clean test
+      - name: Copy Prometheus and Grafana configs, then restart containers
+        run: |
+          echo "Waiting briefly for service containers to initialize..."
+          sleep 15 # Give services time to start
+
+          # Prometheus
+          PROM_CONTAINER_ID=$(docker ps --filter "ancestor=prom/prometheus:latest" --format "{{.ID}}")
+          if [ -z "$PROM_CONTAINER_ID" ]; then
+            echo "Error: Prometheus container not found."
+            docker ps -a # List all containers for debugging
+            exit 1
+          fi
+          echo "Found Prometheus container ID: $PROM_CONTAINER_ID"
+          echo "Copying prometheus.yml to $PROM_CONTAINER_ID:/etc/prometheus/prometheus.yml"
+          docker cp ${{ github.workspace }}/prometheus.yml $PROM_CONTAINER_ID:/etc/prometheus/prometheus.yml
+          echo "Restarting Prometheus container: $PROM_CONTAINER_ID"
+          docker restart $PROM_CONTAINER_ID
+
+          # Grafana
+          GRAFANA_CONTAINER_ID=$(docker ps --filter "ancestor=grafana/grafana:latest" --format "{{.ID}}")
+          if [ -z "$GRAFANA_CONTAINER_ID" ]; then
+            echo "Error: Grafana container not found."
+            docker ps -a # List all containers for debugging
+            exit 1
+          fi
+          echo "Found Grafana container ID: $GRAFANA_CONTAINER_ID"
+          echo "Copying grafana-dashboard-api-test-observability.json to $GRAFANA_CONTAINER_ID:/etc/grafana/provisioning/dashboards/api-test-observability.json"
+          docker cp ${{ github.workspace }}/grafana-dashboard-api-test-observability.json $GRAFANA_CONTAINER_ID:/etc/grafana/provisioning/dashboards/api-test-observability.json
+          echo "Copying grafana-dashboard-provisioning.yaml to $GRAFANA_CONTAINER_ID:/etc/grafana/provisioning/dashboards/dashboard.yaml"
+          docker cp ${{ github.workspace }}/grafana-dashboard-provisioning.yaml $GRAFANA_CONTAINER_ID:/etc/grafana/provisioning/dashboards/dashboard.yaml
+          echo "Restarting Grafana container: $GRAFANA_CONTAINER_ID"
+          docker restart $GRAFANA_CONTAINER_ID
+
+          echo "Waiting for Prometheus and Grafana to apply new configuration..."
+          sleep 10 # Allow time for restart and config load
 
       - name: Wait for Prometheus to be healthy
         run: |
           for i in {1..10}; do
-            if curl -sf http://localhost:9090/-/healthy; then exit 0; fi
+            if curl -sf http://localhost:${{ env.PROMETHEUS_PORT }}/-/healthy; then exit 0; fi
             sleep 5
           done
           exit 1
-
-      - name: Check Prometheus metrics endpoint
-        run: |
-          curl -sf http://localhost:9090/metrics | grep process_cpu_seconds_total
 
       - name: Wait for Grafana to be healthy
         run: |
           for i in {1..10}; do
-            if curl -sf http://localhost:3000/api/health; then exit 0; fi
+            if curl -sf http://localhost:${{ env.GRAFANA_PORT }}/api/health; then exit 0; fi
             sleep 5
           done
           exit 1
 
-      - name: Check Grafana dashboard provisioning
+      - name: Confirm Zipkin is running
         run: |
-          curl -sf -u admin:admin http://localhost:3000/api/search?query=api-test-observability
+          curl --fail http://localhost:${{ env.ZIPKIN_PORT }}/health || exit 1
+          echo "Zipkin is up!"
 
-      - name: Debug: Check prometheus.yml presence in service container
+      - name: Check prometheus.yml presence in service container
         run: |
           docker ps -a
           PROM_CONTAINER=$(docker ps -qf ancestor=prom/prometheus:latest)
@@ -101,3 +139,57 @@ jobs:
             echo "Prometheus container not found."
           fi
         continue-on-error: true
+
+      - name: Wait for Pushgateway to be healthy
+        run: |
+          for i in {1..10}; do
+            if curl -sf http://localhost:${{ env.PUSHGATEWAY_PORT }}/-/healthy; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+
+      - name: Run tests with instrumentation
+        run: mvn clean test
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ env.OTEL_EXPORTER_OTLP_ENDPOINT }}
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+          TEST_RUN_ID: ${{ env.TEST_RUN_ID }}
+          AUT: ${{ env.AUT }}
+          SUITE: ${{ env.SUITE }}
+          PUSHGATEWAY_PORT: ${{ env.PUSHGATEWAY_PORT }}
+          PUSHGATEWAY_ADDRESS: "localhost:${{ env.PUSHGATEWAY_PORT }}"
+
+      - name: Check Prometheus metrics endpoint
+        run: |
+          curl -sf http://localhost:${{ env.PROMETHEUS_PORT }}/metrics | grep process_cpu_seconds_total
+
+      - name: Check Grafana dashboard provisioning
+        run: |
+          curl -sf -u admin:admin http://localhost:${{ env.GRAFANA_PORT }}/api/search?query=api-test-observability
+
+      - name: Verify test metrics in Prometheus
+        run: |
+          sleep 10 # Give Prometheus time to scrape metrics
+          curl -s "http://localhost:${{ env.PROMETHEUS_PORT }}/api/v1/query?query=test_result_total" | jq .
+          # Fail if no results
+          curl -s "http://localhost:${{ env.PROMETHEUS_PORT }}/api/v1/query?query=test_result_total" | grep '"status":"success"' || exit 1
+          echo "Prometheus metrics found!"
+
+      - name: Verify Grafana dashboard is present
+        run: |
+          sleep 10 # Give Grafana time to provision dashboards
+          curl -s -u admin:admin "http://localhost:${{ env.GRAFANA_PORT }}/api/search?query=API%20Test%20Observability" | grep 'API Test Observability' || exit 1
+          echo "Grafana dashboard found!"
+
+      - name: Verify traces in Zipkin
+        run: |
+          curl -s "http://localhost:${{ env.ZIPKIN_PORT }}/api/v2/traces?serviceName=${{ env.SERVICE_NAME }}" | jq .
+
+      - name: Check Pushgateway metrics endpoint
+        run: |
+          curl -sf http://localhost:${{ env.PUSHGATEWAY_PORT }}/metrics | grep test_result_total
+
+      - name: Keep metrics endpoint alive for Prometheus scrape
+        run: |
+          echo "Sleeping for 30s to allow Prometheus to scrape metrics after tests..."
+          sleep 30
