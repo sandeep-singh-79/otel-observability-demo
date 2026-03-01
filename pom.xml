@@ -18,7 +18,7 @@
         <surefire.version>3.5.4</surefire.version>
         <java.version>17</java.version>
         <opentelemetry-sdk.version>1.50.0</opentelemetry-sdk.version>
-        <opentelemetry-exporter-otlp.version>1.50.0</opentelemetry-exporter-otlp.version>
+        <opentelemetry-exporter-otlp.version>1.59.0</opentelemetry-exporter-otlp.version>
     </properties>
 
     <dependencies>
