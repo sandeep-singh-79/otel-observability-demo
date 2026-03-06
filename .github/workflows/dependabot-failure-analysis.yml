@@ -85,7 +85,7 @@ jobs:
 
       - name: Analyse failure with GitHub Models (Copilot)
         id: ai-analysis
-        uses: actions/ai-inference@v1
+        uses: actions/ai-inference@v2
         with:
           model: gpt-4o
           system-prompt: |
