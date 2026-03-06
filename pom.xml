@@ -96,7 +96,7 @@
         <dependency>
             <groupId>au.com.dius.pact</groupId>
             <artifactId>consumer</artifactId>
-            <version>4.6.19</version>
+            <version>4.6.20</version>
         </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
