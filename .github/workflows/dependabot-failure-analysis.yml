@@ -22,12 +22,6 @@ jobs:
       startsWith(github.event.workflow_run.head_branch, 'dependabot/')
 
     steps:
-      - name: Checkout repository at the failing commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-depth: 2
-
       - name: Find the associated pull request
         id: find-pr
         run: |
@@ -62,14 +56,17 @@ jobs:
             tail -100 raw_log.txt
           } > failure_summary.txt
 
-          # Also capture the pom.xml diff for this PR vs main (all commits on branch, not just last)
-          git diff origin/main...HEAD -- pom.xml > pom_diff.txt 2>/dev/null || true
+          # Get pom.xml diff via GitHub API — avoids checking out untrusted code
+          gh api "repos/$REPO/compare/main...$HEAD_SHA" \
+            --jq '[.files[] | select(.filename == "pom.xml")] | if length > 0 then .[0].patch else "No pom.xml changes" end' \
+            > pom_diff.txt 2>/dev/null || echo "No pom.xml changes" > pom_diff.txt
 
           echo "log_file=failure_summary.txt" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
 
       - name: Read pom diff and log for comment
         id: read-files
