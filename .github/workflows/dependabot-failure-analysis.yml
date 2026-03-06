@@ -1,0 +1,209 @@
+name: Dependabot Failure Analysis
+
+on:
+  workflow_run:
+    workflows: ["API Test CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  models: read
+
+jobs:
+  analyse-failure:
+    name: Analyse CI failure and post diagnosis
+    runs-on: ubuntu-latest
+
+    # Only run when: CI failed AND it was triggered by a Dependabot branch
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/')
+
+    steps:
+      - name: Checkout repository at the failing commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 2
+
+      - name: Find the associated pull request
+        id: find-pr
+        run: |
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          PR_DATA=$(gh api "repos/${{ github.repository }}/pulls?state=open&head=${{ github.event.workflow_run.head_repository.owner.login }}:${{ github.event.workflow_run.head_branch }}" \
+            --jq '.[0] | {number: .number, url: .html_url, title: .title}')
+          echo "pr_number=$(echo $PR_DATA | jq -r '.number')" >> $GITHUB_OUTPUT
+          echo "pr_url=$(echo $PR_DATA | jq -r '.url')"       >> $GITHUB_OUTPUT
+          echo "pr_title=$(echo $PR_DATA | jq -r '.title')"   >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download CI failure logs
+        id: get-logs
+        run: |
+          RUN_ID="${{ github.event.workflow_run.id }}"
+
+          # Get the failed job ID
+          FAILED_JOB_ID=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
+            --jq '[.jobs[] | select(.conclusion == "failed")] | .[0].id')
+          echo "Failed job ID: $FAILED_JOB_ID"
+
+          # Download the log for the failed job (GitHub truncates to last 64KB automatically)
+          gh api "repos/${{ github.repository }}/actions/jobs/${FAILED_JOB_ID}/logs" > raw_log.txt 2>&1 || true
+
+          # Extract the meaningful signal: error lines + last 150 lines
+          {
+            echo "=== ERROR/FAILURE LINES ==="
+            grep -i "error\|exception\|failed\|failure\|NoClassDef\|caused by\|BUILD" raw_log.txt | head -80 || true
+            echo ""
+            echo "=== LAST 100 LINES ==="
+            tail -100 raw_log.txt
+          } > failure_summary.txt
+
+          # Also capture the pom.xml diff for this PR vs main
+          git diff HEAD~1 HEAD -- pom.xml > pom_diff.txt 2>/dev/null || true
+
+          echo "log_file=failure_summary.txt" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Analyse failure with GitHub Models (Copilot)
+        id: ai-analysis
+        uses: actions/ai-inference@v1
+        with:
+          model: gpt-4o
+          system-prompt: |
+            You are an expert Java / Maven build engineer and GitHub Actions CI specialist.
+            Your job is to analyse CI failure logs from a Maven-based Java test automation
+            project and produce a concise, actionable diagnosis.
+
+            The project uses: Java 17, Maven, TestNG, REST-Assured, OpenTelemetry SDK,
+            Pact consumer contracts, WireMock, and Prometheus simpleclient.
+            CI runs on GitHub Actions with Docker service containers for Zipkin,
+            OTel Collector, Prometheus, Grafana, and Pushgateway.
+
+            Respond ONLY with a JSON object in this exact structure:
+            {
+              "category": "<one of: version-conflict | compile-error | test-failure | infra-issue | unknown>",
+              "confidence": "<high | medium | low>",
+              "root_cause": "<2-4 sentence explanation of the root cause>",
+              "affected_component": "<the specific class, artifact, or step that failed>",
+              "fix_recommendation": "<concrete actionable fix — be specific, include version numbers or code snippets if applicable>",
+              "auto_fixable": <true if the fix is a simple pom.xml change, false otherwise>
+            }
+          prompt: |
+            Analyse the following CI failure for a Dependabot dependency bump PR.
+
+            ## PR Info
+            Title: ${{ steps.find-pr.outputs.pr_title }}
+            Branch: ${{ github.event.workflow_run.head_branch }}
+
+            ## pom.xml diff (what Dependabot changed)
+            ```
+            ${{ hashFiles('pom_diff.txt') != '' && 'See pom_diff.txt' || 'No pom.xml diff available' }}
+            ```
+
+            ${{ steps.get-logs.outputs.log_file && '' }}
+
+            ## Failure log extract
+            ```
+            ${{ steps.get-logs.result }}
+            ```
+
+      - name: Read pom diff and log for comment
+        id: read-files
+        run: |
+          POM_DIFF=$(cat pom_diff.txt 2>/dev/null || echo "No pom.xml changes")
+          LOG_EXTRACT=$(head -100 failure_summary.txt 2>/dev/null || echo "No log available")
+
+          # Escape for multiline env var
+          echo "pom_diff<<EOF_POM" >> $GITHUB_OUTPUT
+          echo "$POM_DIFF"         >> $GITHUB_OUTPUT
+          echo "EOF_POM"           >> $GITHUB_OUTPUT
+
+          echo "log_extract<<EOF_LOG" >> $GITHUB_OUTPUT
+          echo "$LOG_EXTRACT"         >> $GITHUB_OUTPUT
+          echo "EOF_LOG"              >> $GITHUB_OUTPUT
+
+      - name: Parse AI response
+        id: parse
+        run: |
+          RESPONSE='${{ steps.ai-analysis.outputs.response }}'
+          echo "category=$(echo $RESPONSE    | jq -r '.category')"          >> $GITHUB_OUTPUT
+          echo "confidence=$(echo $RESPONSE  | jq -r '.confidence')"        >> $GITHUB_OUTPUT
+          echo "root_cause=$(echo $RESPONSE  | jq -r '.root_cause')"        >> $GITHUB_OUTPUT
+          echo "component=$(echo $RESPONSE   | jq -r '.affected_component')" >> $GITHUB_OUTPUT
+          echo "fix=$(echo $RESPONSE         | jq -r '.fix_recommendation')" >> $GITHUB_OUTPUT
+          echo "auto_fixable=$(echo $RESPONSE | jq -r '.auto_fixable')"     >> $GITHUB_OUTPUT
+
+      - name: Post diagnosis comment on PR
+        run: |
+          CATEGORY="${{ steps.parse.outputs.category }}"
+          CONFIDENCE="${{ steps.parse.outputs.confidence }}"
+          ROOT_CAUSE="${{ steps.parse.outputs.root_cause }}"
+          COMPONENT="${{ steps.parse.outputs.component }}"
+          FIX="${{ steps.parse.outputs.fix }}"
+          AUTO_FIXABLE="${{ steps.parse.outputs.auto_fixable }}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
+
+          # Category badge
+          case "$CATEGORY" in
+            version-conflict) BADGE="🔴 Version Conflict" ;;
+            compile-error)    BADGE="🔴 Compile Error" ;;
+            test-failure)     BADGE="🟡 Test Failure" ;;
+            infra-issue)      BADGE="🟠 Infrastructure Issue" ;;
+            *)                BADGE="⚪ Unknown" ;;
+          esac
+
+          # Auto-fix note
+          if [ "$AUTO_FIXABLE" = "true" ]; then
+            FIX_NOTE="> 🤖 This looks like an auto-fixable change. You can ask Copilot to apply it by commenting \`@github-copilot try to fix\` on this PR."
+          else
+            FIX_NOTE="> 👷 This requires manual intervention — see the fix recommendation below."
+          fi
+
+          gh pr comment "${{ steps.find-pr.outputs.pr_url }}" --body "$(cat <<EOF
+          ## 🔍 CI Failure Analysis — Automated Diagnosis
+
+          **Status:** ${BADGE} | **Confidence:** ${CONFIDENCE}
+          **Failed run:** [View logs](${RUN_URL})
+
+          ---
+
+          ### Root Cause
+          ${ROOT_CAUSE}
+
+          ### Affected Component
+          \`${COMPONENT}\`
+
+          ### Recommended Fix
+          ${FIX}
+
+          ${FIX_NOTE}
+
+          ---
+
+          <details>
+          <summary>📄 pom.xml diff (what Dependabot changed)</summary>
+
+          \`\`\`diff
+          ${{ steps.read-files.outputs.pom_diff }}
+          \`\`\`
+          </details>
+
+          <details>
+          <summary>📋 Failure log extract</summary>
+
+          \`\`\`
+          ${{ steps.read-files.outputs.log_extract }}
+          \`\`\`
+          </details>
+
+          ---
+          *Generated by [Dependabot Failure Analysis workflow](https://github.com/${{ github.repository }}/blob/main/.github/workflows/dependabot-failure-analysis.yml)*
+          EOF
+          )"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
