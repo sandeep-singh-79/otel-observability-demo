@@ -15,10 +15,8 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    auto-merge: true
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
-    auto-merge: true
