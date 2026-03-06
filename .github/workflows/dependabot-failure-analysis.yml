@@ -62,12 +62,27 @@ jobs:
             tail -100 raw_log.txt
           } > failure_summary.txt
 
-          # Also capture the pom.xml diff for this PR vs main
-          git diff HEAD~1 HEAD -- pom.xml > pom_diff.txt 2>/dev/null || true
+          # Also capture the pom.xml diff for this PR vs main (all commits on branch, not just last)
+          git diff origin/main...HEAD -- pom.xml > pom_diff.txt 2>/dev/null || true
 
           echo "log_file=failure_summary.txt" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read pom diff and log for comment
+        id: read-files
+        run: |
+          POM_DIFF=$(cat pom_diff.txt 2>/dev/null || echo "No pom.xml changes")
+          LOG_EXTRACT=$(head -100 failure_summary.txt 2>/dev/null || echo "No log available")
+
+          # Escape for multiline env var
+          echo "pom_diff<<EOF_POM" >> $GITHUB_OUTPUT
+          echo "$POM_DIFF"         >> $GITHUB_OUTPUT
+          echo "EOF_POM"           >> $GITHUB_OUTPUT
+
+          echo "log_extract<<EOF_LOG" >> $GITHUB_OUTPUT
+          echo "$LOG_EXTRACT"         >> $GITHUB_OUTPUT
+          echo "EOF_LOG"              >> $GITHUB_OUTPUT
 
       - name: Analyse failure with GitHub Models (Copilot)
         id: ai-analysis
@@ -102,41 +117,27 @@ jobs:
 
             ## pom.xml diff (what Dependabot changed)
             ```
-            ${{ hashFiles('pom_diff.txt') != '' && 'See pom_diff.txt' || 'No pom.xml diff available' }}
+            ${{ steps.read-files.outputs.pom_diff }}
             ```
-
-            ${{ steps.get-logs.outputs.log_file && '' }}
 
             ## Failure log extract
             ```
-            ${{ steps.get-logs.result }}
+            ${{ steps.read-files.outputs.log_extract }}
             ```
-
-      - name: Read pom diff and log for comment
-        id: read-files
-        run: |
-          POM_DIFF=$(cat pom_diff.txt 2>/dev/null || echo "No pom.xml changes")
-          LOG_EXTRACT=$(head -100 failure_summary.txt 2>/dev/null || echo "No log available")
-
-          # Escape for multiline env var
-          echo "pom_diff<<EOF_POM" >> $GITHUB_OUTPUT
-          echo "$POM_DIFF"         >> $GITHUB_OUTPUT
-          echo "EOF_POM"           >> $GITHUB_OUTPUT
-
-          echo "log_extract<<EOF_LOG" >> $GITHUB_OUTPUT
-          echo "$LOG_EXTRACT"         >> $GITHUB_OUTPUT
-          echo "EOF_LOG"              >> $GITHUB_OUTPUT
 
       - name: Parse AI response
         id: parse
+        env:
+          AI_RESPONSE: ${{ steps.ai-analysis.outputs.response }}
         run: |
-          RESPONSE='${{ steps.ai-analysis.outputs.response }}'
-          echo "category=$(echo $RESPONSE    | jq -r '.category')"          >> $GITHUB_OUTPUT
-          echo "confidence=$(echo $RESPONSE  | jq -r '.confidence')"        >> $GITHUB_OUTPUT
-          echo "root_cause=$(echo $RESPONSE  | jq -r '.root_cause')"        >> $GITHUB_OUTPUT
-          echo "component=$(echo $RESPONSE   | jq -r '.affected_component')" >> $GITHUB_OUTPUT
-          echo "fix=$(echo $RESPONSE         | jq -r '.fix_recommendation')" >> $GITHUB_OUTPUT
-          echo "auto_fixable=$(echo $RESPONSE | jq -r '.auto_fixable')"     >> $GITHUB_OUTPUT
+          printf '%s' "$AI_RESPONSE" > ai_response.json
+          echo "category=$(jq -r '.category' ai_response.json)"            >> $GITHUB_OUTPUT
+          echo "confidence=$(jq -r '.confidence' ai_response.json)"        >> $GITHUB_OUTPUT
+          echo "auto_fixable=$(jq -r '.auto_fixable' ai_response.json)"    >> $GITHUB_OUTPUT
+          echo "component=$(jq -r '.affected_component' ai_response.json)" >> $GITHUB_OUTPUT
+          # Multi-line fields use heredoc syntax to avoid truncation at first newline
+          { printf 'root_cause<<EOFROOTCAUSE\n'; jq -r '.root_cause' ai_response.json; printf 'EOFROOTCAUSE\n'; } >> $GITHUB_OUTPUT
+          { printf 'fix<<EOFIX\n'; jq -r '.fix_recommendation' ai_response.json; printf 'EOFIX\n'; } >> $GITHUB_OUTPUT
 
       - name: Post diagnosis comment on PR
         run: |
