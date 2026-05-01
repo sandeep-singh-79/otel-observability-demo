@@ -17,7 +17,7 @@
         <env.qa>qa</env.qa>
         <surefire.version>3.5.5</surefire.version>
         <java.version>17</java.version>
-        <opentelemetry.version>1.60.1</opentelemetry.version>
+        <opentelemetry.version>1.61.0</opentelemetry.version>
     </properties>
 
     <dependencyManagement>
@@ -76,7 +76,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.44</version>
+            <version>1.18.46</version>
         </dependency>
         <dependency>
             <groupId>com.aventstack</groupId>
@@ -107,7 +107,7 @@
         <dependency>
             <groupId>au.com.dius.pact</groupId>
             <artifactId>consumer</artifactId>
-            <version>4.6.20</version>
+            <version>4.7.1</version>
         </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
