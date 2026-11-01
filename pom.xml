@@ -9,15 +9,15 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <logback.version>1.6.4</logback.version>
+        <logback.version>1.6.6</logback.version>
         <slf4j.version>2.0.20</slf4j.version>
-        <restassured.version>6.0.1</restassured.version>
+        <restassured.version>6.3.0</restassured.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <env.dev>dev</env.dev>
         <env.qa>qa</env.qa>
-        <surefire.version>3.6.0</surefire.version>
+        <surefire.version>3.6.1</surefire.version>
         <java.version>17</java.version>
-        <opentelemetry.version>1.66.0</opentelemetry.version>
+        <opentelemetry.version>1.67.0</opentelemetry.version>
     </properties>
 
     <dependencyManagement>
@@ -101,13 +101,13 @@
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <version>6.0.1</version>
+            <version>6.3.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>au.com.dius.pact</groupId>
             <artifactId>consumer</artifactId>
-            <version>4.7.5</version>
+            <version>4.7.6</version>
         </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
